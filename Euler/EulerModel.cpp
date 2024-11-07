@@ -43,5 +43,12 @@ void EulerModel::setDt(double dt) {
 double EulerModel::getA() const {
     return m_a;
 }
+double EulerModel::getDt() const {
+    return m_dt;
+}
+
+void EulerModel::setSteps(int steps) {
+    m_steps = steps;
+}
 
 }

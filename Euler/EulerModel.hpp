@@ -12,8 +12,10 @@ public:
     explicit EulerModel(double a = 0.5, int steps = 1000, QObject *parent = nullptr);
     void method(QtCharts::QLineSeries *series_x, QtCharts::QLineSeries *series_dxdt);
     void setA(double a);
-    void setDt(double dt); // Метод для установки dt
-    double getA() const;    // Метод для получения a
+    void setDt(double dt);
+    double getA() const;
+    double getDt() const;
+    void setSteps(int steps);
 
 private:
     double dxdt(double x, double a);
