@@ -1,8 +1,10 @@
-#ifndef MAINWINDOW_HPP
-#define MAINWINDOW_HPP
-
+#pragma once
 #include <QMainWindow>
 
+namespace Euler{
+class EulerModel;
+class EulerWidget;
+}
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class MainWindow;
@@ -14,10 +16,11 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = nullptr);
+    explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
 private:
-    Ui::MainWindow *ui;
+    QWidget* mainWidget;
+    Euler::EulerModel* m_eulerModel {nullptr};
+    Euler::EulerWidget* m_eulerWidget {nullptr};
 };
-#endif // MAINWINDOW_HPP
