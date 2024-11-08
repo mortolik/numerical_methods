@@ -5,91 +5,117 @@
 #include <QtCharts/QLineSeries>
 #include <QPushButton>
 #include <QDoubleSpinBox>
+#include <QSpinBox>
 #include <QVBoxLayout>
+#include <QDebug>
 
 using namespace QtCharts;
 
-namespace Euler
-{
+namespace Euler {
 
 EulerWidget::EulerWidget(EulerModel *model, QWidget *parent)
     : QWidget{parent}
     , m_eulerModel(model)
+    , m_chartX(new QChart())
+    , m_chartDxdt(new QChart())
+    , m_seriesX(new QLineSeries())
+    , m_seriesDxdt(new QLineSeries())
 {
-    QChart *chart_x = new QChart();
-    chart_x->setTitle("График x(t)");
+    m_chartX->setTitle("График x(t)");
+    m_chartDxdt->setTitle("График dx/dt");
 
-    QChart *chart_dxdt = new QChart();
-    chart_dxdt->setTitle("График dx/dt");
+    m_chartX->addSeries(m_seriesX);
+    m_chartDxdt->addSeries(m_seriesDxdt);
 
-    QLineSeries *series_x = new QLineSeries();
-    series_x->setName("x(t)");
+    m_axisX_x = new QValueAxis();
+    m_axisX_x->setTitleText("t");
+    m_axisX_x->setLabelFormat("%.2f");
+    m_chartX->addAxis(m_axisX_x, Qt::AlignBottom);
+    m_seriesX->attachAxis(m_axisX_x);
 
-    QLineSeries *series_dxdt = new QLineSeries();
-    series_dxdt->setName("dx/dt");
+    m_axisY_x = new QValueAxis();
+    m_axisY_x->setTitleText("x(t)");
+    m_axisY_x->setLabelFormat("%.2f");
+    m_chartX->addAxis(m_axisY_x, Qt::AlignLeft);
+    m_seriesX->attachAxis(m_axisY_x);
 
-    m_eulerModel->method(series_x, series_dxdt);
+    m_axisX_dxdt = new QValueAxis();
+    m_axisX_dxdt->setTitleText("t");
+    m_axisX_dxdt->setLabelFormat("%.2f");
+    m_chartDxdt->addAxis(m_axisX_dxdt, Qt::AlignBottom);
+    m_seriesDxdt->attachAxis(m_axisX_dxdt);
 
-    chart_x->addSeries(series_x);
-    chart_dxdt->addSeries(series_dxdt);
+    m_axisY_dxdt = new QValueAxis();
+    m_axisY_dxdt->setTitleText("dx/dt");
+    m_axisY_dxdt->setLabelFormat("%.2f");
+    m_chartDxdt->addAxis(m_axisY_dxdt, Qt::AlignLeft);
+    m_seriesDxdt->attachAxis(m_axisY_dxdt);
 
-    QValueAxis *axisX_x = new QValueAxis();
-    axisX_x->setTitleText("t");
-    axisX_x->setLabelFormat("%.2f");
-    axisX_x->setRange(0, 10);
+    m_chartViewX = new QChartView(m_chartX);
+    m_chartViewX->setRenderHint(QPainter::Antialiasing);
 
-    QValueAxis *axisY_x = new QValueAxis();
-    axisY_x->setTitleText("x(t)");
-    axisY_x->setLabelFormat("%.2f");
+    m_chartViewDxdt = new QChartView(m_chartDxdt);
+    m_chartViewDxdt->setRenderHint(QPainter::Antialiasing);
 
-    chart_x->addAxis(axisX_x, Qt::AlignBottom);
-    chart_x->addAxis(axisY_x, Qt::AlignLeft);
+    m_aSpinBox = new QDoubleSpinBox();
+    m_aSpinBox->setRange(-10.0, 10.0);
+    m_aSpinBox->setSingleStep(0.1);
+    m_aSpinBox->setPrefix("a = ");
 
-    series_x->attachAxis(axisX_x);
-    series_x->attachAxis(axisY_x);
+    m_timeSpinBox = new QSpinBox();
+    m_timeSpinBox->setRange(1, 1000);
+    m_timeSpinBox->setPrefix("Время = ");
 
-    QValueAxis *axisX_dxdt = new QValueAxis();
-    axisX_dxdt->setTitleText("t");
-    axisX_dxdt->setLabelFormat("%.2f");
-    axisX_dxdt->setRange(0, 10);
+    m_updateButton = new QPushButton("Обновить графики");
 
-    QValueAxis *axisY_dxdt = new QValueAxis();
-    axisY_dxdt->setTitleText("dx/dt");
-    axisY_dxdt->setLabelFormat("%.2f");
-
-    chart_dxdt->addAxis(axisX_dxdt, Qt::AlignBottom);
-    chart_dxdt->addAxis(axisY_dxdt, Qt::AlignLeft);
-
-    series_dxdt->attachAxis(axisX_dxdt);
-    series_dxdt->attachAxis(axisY_dxdt);
-
-    QChartView *chartView_x = new QChartView(chart_x);
-    chartView_x->setRenderHint(QPainter::Antialiasing);
-
-    QChartView *chartView_dxdt = new QChartView(chart_dxdt);
-    chartView_dxdt->setRenderHint(QPainter::Antialiasing);
-
-    QDoubleSpinBox *aSpinBox = new QDoubleSpinBox();
-    aSpinBox->setRange(-10.0, 10.0);
-    aSpinBox->setValue(m_eulerModel->getA());
-    aSpinBox->setSingleStep(0.1);
-    aSpinBox->setPrefix("a = ");
-
-    QPushButton *updateButton = new QPushButton("Обновить графики");
-
-    QObject::connect(updateButton, &QPushButton::clicked, [&]() {
-        double newA = aSpinBox->value();
-        m_eulerModel->setA(newA);
-        m_eulerModel->method(series_x, series_dxdt);
-    });
+    connect(m_updateButton, &QPushButton::clicked, this, &EulerWidget::updateChart);
 
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
-    mainLayout->addWidget(chartView_x);
-    mainLayout->addWidget(chartView_dxdt);
-    mainLayout->addWidget(aSpinBox);
-    mainLayout->addWidget(updateButton);
+    mainLayout->addWidget(m_chartViewX);
+    mainLayout->addWidget(m_chartViewDxdt);
+    mainLayout->addWidget(m_aSpinBox);
+    mainLayout->addWidget(m_timeSpinBox);
+    mainLayout->addWidget(m_updateButton);
 
     setLayout(mainLayout);
+}
+
+void EulerWidget::updateChart() {
+    double a = m_aSpinBox->value();
+    int maxTime = m_timeSpinBox->value();
+
+    if (maxTime <= 0) {
+        maxTime = 1;
+        m_timeSpinBox->setValue(maxTime);
+    }
+
+    m_eulerModel->setA(a);
+    const int maxPoints = 1000;
+    double dt = static_cast<double>(maxTime) / maxPoints;
+    m_eulerModel->setDt(dt);
+
+    m_seriesX->clear();
+    m_seriesDxdt->clear();
+
+    m_eulerModel->method(m_seriesX, m_seriesDxdt);
+
+    m_axisX_x->setRange(0, maxTime);
+    m_axisX_dxdt->setRange(0, maxTime);
+
+    auto pointsX = m_seriesX->pointsVector();
+    auto pointsDxdt = m_seriesDxdt->pointsVector();
+
+    if (!pointsX.empty()) {
+        auto [minX, maxX] = std::minmax_element(pointsX.begin(), pointsX.end(),
+                                                [](const QPointF &a, const QPointF &b) { return a.y() < b.y(); });
+        m_axisY_x->setRange(minX->y(), maxX->y());
+    }
+
+    if (!pointsDxdt.empty()) {
+        auto [minDxdt, maxDxdt] = std::minmax_element(pointsDxdt.begin(), pointsDxdt.end(),
+                                                      [](const QPointF &a, const QPointF &b) { return a.y() < b.y(); });
+        m_axisY_dxdt->setRange(minDxdt->y(), maxDxdt->y());
+    }
 }
 
 }
