@@ -47,8 +47,9 @@ double EulerModel::getDt() const {
     return m_dt;
 }
 
-void EulerModel::setSteps(int steps) {
-    m_steps = steps;
+int EulerModel::getMaxSteps() const
+{
+    return 1000;
 }
 
 }

@@ -1,9 +1,9 @@
 #pragma once
+
 #include <QObject>
 #include <QtCharts/QLineSeries>
 
-namespace Euler
-{
+namespace Euler {
 
 class EulerModel : public QObject {
     Q_OBJECT
@@ -15,7 +15,7 @@ public:
     void setDt(double dt);
     double getA() const;
     double getDt() const;
-    void setSteps(int steps);
+    int getMaxSteps() const;
 
 private:
     double dxdt(double x, double a);
@@ -28,3 +28,4 @@ private:
 };
 
 }
+
