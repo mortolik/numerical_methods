@@ -62,10 +62,12 @@ HeunWidget::HeunWidget(HeunModel *model, QWidget *parent)
     m_aSpinBox->setRange(-10.0, 10.0);
     m_aSpinBox->setSingleStep(0.1);
     m_aSpinBox->setPrefix("a = ");
+    m_aSpinBox->setValue(1.3);
 
     m_timeSpinBox = new QSpinBox();
     m_timeSpinBox->setRange(1, 1000);
     m_timeSpinBox->setPrefix("Время = ");
+    m_timeSpinBox->setValue(10);
 
     m_updateButton = new QPushButton("Обновить графики");
 
@@ -81,7 +83,8 @@ HeunWidget::HeunWidget(HeunModel *model, QWidget *parent)
     setLayout(mainLayout);
 }
 
-void HeunWidget::updateChart() {
+void HeunWidget::updateChart()
+{
     double a = m_aSpinBox->value();
     int maxTime = m_timeSpinBox->value();
 
@@ -95,16 +98,38 @@ void HeunWidget::updateChart() {
     double dt = static_cast<double>(maxTime) / maxPoints;
     m_heunModel->setDt(dt);
 
-    m_seriesX->clear();
-    m_seriesDxdt->clear();
+    QLineSeries *cleanSeriesX = new QLineSeries();
+    QLineSeries *noisySeriesX = new QLineSeries();
+    QLineSeries *cleanSeriesDxdt = new QLineSeries();
+    QLineSeries *noisySeriesDxdt = new QLineSeries();
 
-    m_heunModel->method(m_seriesX, m_seriesDxdt);
+    cleanSeriesX->setName("x(t) без шума");
+    noisySeriesX->setName("x(t) с шумом");
+    cleanSeriesDxdt->setName("dx/dt без шума");
+    noisySeriesDxdt->setName("dx/dt с шумом");
+
+    QColor noisyColor = Qt::red;
+    noisyColor.setAlpha(128);
+    QPen noisyPen(noisyColor);
+    noisyPen.setWidth(1);
+    noisySeriesX->setPen(noisyPen);
+    noisySeriesDxdt->setPen(noisyPen);
+
+    m_heunModel->method(noisySeriesX, noisySeriesDxdt, cleanSeriesX, cleanSeriesDxdt);
+
+    m_chartX->removeAllSeries();
+    m_chartX->addSeries(cleanSeriesX);
+    m_chartX->addSeries(noisySeriesX);
+
+    m_chartDxdt->removeAllSeries();
+    m_chartDxdt->addSeries(cleanSeriesDxdt);
+    m_chartDxdt->addSeries(noisySeriesDxdt);
 
     m_axisX_x->setRange(0, maxTime);
     m_axisX_dxdt->setRange(0, maxTime);
 
-    auto pointsX = m_seriesX->pointsVector();
-    auto pointsDxdt = m_seriesDxdt->pointsVector();
+    auto pointsX = noisySeriesX->pointsVector();
+    auto pointsDxdt = noisySeriesDxdt->pointsVector();
 
     if (!pointsX.empty()) {
         auto [minX, maxX] = std::minmax_element(pointsX.begin(), pointsX.end(),
