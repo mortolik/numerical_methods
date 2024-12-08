@@ -1,9 +1,15 @@
 #pragma once
 #include <QMainWindow>
 
-namespace Euler{
+namespace Euler
+{
 class EulerModel;
 class EulerWidget;
+}
+namespace Heun
+{
+class HeunModel;
+class HeunWidget;
 }
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -23,4 +29,7 @@ private:
     QWidget* mainWidget;
     Euler::EulerModel* m_eulerModel {nullptr};
     Euler::EulerWidget* m_eulerWidget {nullptr};
+
+    Heun::HeunModel* m_heunModel {nullptr};
+    Heun::HeunWidget* m_heunWidget {nullptr};
 };

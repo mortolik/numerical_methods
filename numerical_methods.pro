@@ -14,12 +14,16 @@ CONFIG += c++17
 SOURCES += \
     Euler/EulerModel.cpp \
     Euler/EulerWidget.cpp \
+    Heun/HeunModel.cpp \
+    Heun/HeunWidget.cpp \
     main.cpp \
     MainWindow.cpp
 
 HEADERS += \
     Euler/EulerModel.hpp \
     Euler/EulerWidget.hpp \
+    Heun/HeunModel.hpp \
+    Heun/HeunWidget.hpp \
     MainWindow.hpp
 
 FORMS += \
