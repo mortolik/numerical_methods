@@ -1,4 +1,5 @@
 #pragma once
+#include "qpushbutton.h"
 #include <QMainWindow>
 #include <QtCharts/QValueAxis>
 #include <QtCharts/QChartView>
@@ -38,10 +39,12 @@ private:
 
     Heun::HeunModel* m_heunModel {nullptr};
     Heun::HeunWidget* m_heunWidget {nullptr};
-    void calculateDifferences(QLineSeries *eulerSeries, QLineSeries *heunSeries, QLineSeries *diffSeries);
 
-    // График разницы
-    QLineSeries *m_diffSeriesX;
-    QChart *m_diffChart;
-    QChartView *m_diffChartView;
+    QLineSeries *m_eulerSeriesX; // График x(t) для метода Эйлера
+    QLineSeries *m_heunSeriesX;  // График x(t) для метода Хьюна
+
+    QChart *m_chart;             // Общий график
+    QChartView *m_chartView;
+
+    QPushButton *m_updateButton;
 };

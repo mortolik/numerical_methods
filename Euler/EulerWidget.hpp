@@ -31,16 +31,16 @@ private:
     EulerModel *m_eulerModel;
     QtCharts::QChart *m_chartX;
     QtCharts::QChart *m_chartDxdt;
-    QtCharts::QLineSeries *m_seriesX;
-    QtCharts::QLineSeries *m_seriesDxdt;
+    QtCharts::QLineSeries *m_seriesEuler;
+    QtCharts::QLineSeries *m_seriesHeun;
     QtCharts::QChartView *m_chartViewX;
     QtCharts::QChartView *m_chartViewDxdt;
     QDoubleSpinBox *m_aSpinBox;
     QSpinBox *m_timeSpinBox;
     QPushButton *m_updateButton;
 
-    QtCharts::QValueAxis *m_axisX_x;
-    QtCharts::QValueAxis *m_axisY_x;
+    QtCharts::QValueAxis *m_axisX;
+    QtCharts::QValueAxis *m_axisY;
     QtCharts::QValueAxis *m_axisX_dxdt;
     QtCharts::QValueAxis *m_axisY_dxdt;
 };

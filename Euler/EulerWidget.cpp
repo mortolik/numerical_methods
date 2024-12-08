@@ -17,46 +17,41 @@ EulerWidget::EulerWidget(EulerModel *model, QWidget *parent)
     : QWidget{parent}
     , m_eulerModel(model)
     , m_chartX(new QChart())
-    , m_chartDxdt(new QChart())
-    , m_seriesX(new QLineSeries())
-    , m_seriesDxdt(new QLineSeries())
+    , m_seriesEuler(new QLineSeries())
+    , m_seriesHeun(new QLineSeries())
 {
-    m_chartX->setTitle("График x(t)");
-    m_chartDxdt->setTitle("График dx/dt");
+    // Настраиваем график
+    m_chartX->setTitle("Сравнение методов: x(t)");
 
-    m_chartX->addSeries(m_seriesX);
-    m_chartDxdt->addSeries(m_seriesDxdt);
+    m_seriesEuler->setName("Метод Эйлера");
+    m_seriesEuler->setColor(Qt::blue);
 
-    m_axisX_x = new QValueAxis();
-    m_axisX_x->setTitleText("t");
-    m_axisX_x->setLabelFormat("%.2f");
-    m_chartX->addAxis(m_axisX_x, Qt::AlignBottom);
-    m_seriesX->attachAxis(m_axisX_x);
+    m_seriesHeun->setName("Метод Хьюна");
+    m_seriesHeun->setColor(Qt::red);
 
-    m_axisY_x = new QValueAxis();
-    m_axisY_x->setTitleText("x(t)");
-    m_axisY_x->setLabelFormat("%.2f");
-    m_chartX->addAxis(m_axisY_x, Qt::AlignLeft);
-    m_seriesX->attachAxis(m_axisY_x);
+    m_chartX->addSeries(m_seriesEuler);
+    m_chartX->addSeries(m_seriesHeun);
 
-    m_axisX_dxdt = new QValueAxis();
-    m_axisX_dxdt->setTitleText("t");
-    m_axisX_dxdt->setLabelFormat("%.2f");
-    m_chartDxdt->addAxis(m_axisX_dxdt, Qt::AlignBottom);
-    m_seriesDxdt->attachAxis(m_axisX_dxdt);
+    // Оси графика
+    m_axisX = new QValueAxis();
+    m_axisX->setTitleText("t");
+    m_axisX->setLabelFormat("%.2f");
+    m_chartX->addAxis(m_axisX, Qt::AlignBottom);
+    m_seriesEuler->attachAxis(m_axisX);
+    m_seriesHeun->attachAxis(m_axisX);
 
-    m_axisY_dxdt = new QValueAxis();
-    m_axisY_dxdt->setTitleText("dx/dt");
-    m_axisY_dxdt->setLabelFormat("%.2f");
-    m_chartDxdt->addAxis(m_axisY_dxdt, Qt::AlignLeft);
-    m_seriesDxdt->attachAxis(m_axisY_dxdt);
+    m_axisY = new QValueAxis();
+    m_axisY->setTitleText("x(t)");
+    m_axisY->setLabelFormat("%.2f");
+    m_chartX->addAxis(m_axisY, Qt::AlignLeft);
+    m_seriesEuler->attachAxis(m_axisY);
+    m_seriesHeun->attachAxis(m_axisY);
 
+    // Отображение графика
     m_chartViewX = new QChartView(m_chartX);
     m_chartViewX->setRenderHint(QPainter::Antialiasing);
 
-    m_chartViewDxdt = new QChartView(m_chartDxdt);
-    m_chartViewDxdt->setRenderHint(QPainter::Antialiasing);
-
+    // Элементы управления
     m_aSpinBox = new QDoubleSpinBox();
     m_aSpinBox->setRange(-10.0, 10.0);
     m_aSpinBox->setSingleStep(0.1);
@@ -70,19 +65,14 @@ EulerWidget::EulerWidget(EulerModel *model, QWidget *parent)
 
     connect(m_updateButton, &QPushButton::clicked, this, &EulerWidget::updateChart);
 
+    // Макет
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->addWidget(m_chartViewX);
-    mainLayout->addWidget(m_chartViewDxdt);
     mainLayout->addWidget(m_aSpinBox);
     mainLayout->addWidget(m_timeSpinBox);
     mainLayout->addWidget(m_updateButton);
 
     setLayout(mainLayout);
-}
-
-QLineSeries *EulerWidget::getSeriesX() const
-{
-    return m_seriesX;
 }
 
 void EulerWidget::updateChart() {
@@ -99,28 +89,31 @@ void EulerWidget::updateChart() {
     double dt = static_cast<double>(maxTime) / maxPoints;
     m_eulerModel->setDt(dt);
 
-    m_seriesX->clear();
-    m_seriesDxdt->clear();
+    m_seriesEuler->clear();
+    m_seriesHeun->clear();
 
-    m_eulerModel->method(m_seriesX, m_seriesDxdt);
+    // Вычисляем результаты для обоих методов
+    m_eulerModel->eulerMethod(m_seriesEuler);
+    m_eulerModel->heunMethod(m_seriesHeun);
 
-    m_axisX_x->setRange(0, maxTime);
-    m_axisX_dxdt->setRange(0, maxTime);
+    // Обновляем оси графика
+    auto pointsEuler = m_seriesEuler->pointsVector();
+    auto pointsHeun = m_seriesHeun->pointsVector();
 
-    auto pointsX = m_seriesX->pointsVector();
-    auto pointsDxdt = m_seriesDxdt->pointsVector();
+    double minY = std::numeric_limits<double>::max();
+    double maxY = std::numeric_limits<double>::lowest();
 
-    if (!pointsX.empty()) {
-        auto [minX, maxX] = std::minmax_element(pointsX.begin(), pointsX.end(),
-                                                [](const QPointF &a, const QPointF &b) { return a.y() < b.y(); });
-        m_axisY_x->setRange(minX->y(), maxX->y());
+    for (const auto &point : pointsEuler) {
+        minY = std::min(minY, point.y());
+        maxY = std::max(maxY, point.y());
+    }
+    for (const auto &point : pointsHeun) {
+        minY = std::min(minY, point.y());
+        maxY = std::max(maxY, point.y());
     }
 
-    if (!pointsDxdt.empty()) {
-        auto [minDxdt, maxDxdt] = std::minmax_element(pointsDxdt.begin(), pointsDxdt.end(),
-                                                      [](const QPointF &a, const QPointF &b) { return a.y() < b.y(); });
-        m_axisY_dxdt->setRange(minDxdt->y(), maxDxdt->y());
-    }
+    m_axisX->setRange(0, maxTime);
+    m_axisY->setRange(minY, maxY);
 }
 
 }

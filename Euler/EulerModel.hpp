@@ -10,7 +10,8 @@ class EulerModel : public QObject {
 
 public:
     explicit EulerModel(double a = 0.5, int steps = 1000, QObject *parent = nullptr);
-    void method(QtCharts::QLineSeries *series_x, QtCharts::QLineSeries *series_dxdt);
+    void eulerMethod(QtCharts::QLineSeries *series_x);
+    void heunMethod(QtCharts::QLineSeries *series_x);
     void setA(double a);
     void setDt(double dt);
     double getA() const;
