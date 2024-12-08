@@ -21,6 +21,7 @@ class HeunWidget : public QWidget {
     Q_OBJECT
 public:
     explicit HeunWidget(HeunModel *model, QWidget *parent);
+    QtCharts::QLineSeries* getSeriesX() const;
 
 private slots:
     void updateChart();

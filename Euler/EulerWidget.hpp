@@ -22,6 +22,7 @@ class EulerWidget : public QWidget {
 
 public:
     explicit EulerWidget(EulerModel *model, QWidget *parent = nullptr);
+    QtCharts::QLineSeries* getSeriesX() const;
 
 private slots:
     void updateChart();

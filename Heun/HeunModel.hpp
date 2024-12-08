@@ -29,6 +29,8 @@ public:
 
     int getMaxSteps() const;
 
+
+
 private:
     double m_a;
     double m_x0;

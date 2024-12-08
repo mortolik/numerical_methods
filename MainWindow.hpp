@@ -1,5 +1,11 @@
 #pragma once
 #include <QMainWindow>
+#include <QtCharts/QValueAxis>
+#include <QtCharts/QChartView>
+#include <QtCharts/QLineSeries>
+#include <QtCharts/QValueAxis>
+
+using namespace QtCharts;
 
 namespace Euler
 {
@@ -32,4 +38,10 @@ private:
 
     Heun::HeunModel* m_heunModel {nullptr};
     Heun::HeunWidget* m_heunWidget {nullptr};
+    void calculateDifferences(QLineSeries *eulerSeries, QLineSeries *heunSeries, QLineSeries *diffSeries);
+
+    // График разницы
+    QLineSeries *m_diffSeriesX;
+    QChart *m_diffChart;
+    QChartView *m_diffChartView;
 };

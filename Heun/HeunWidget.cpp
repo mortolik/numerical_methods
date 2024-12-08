@@ -81,6 +81,11 @@ HeunWidget::HeunWidget(HeunModel *model, QWidget *parent)
     setLayout(mainLayout);
 }
 
+QLineSeries *Heun::HeunWidget::HeunWidget::getSeriesX() const
+{
+    return m_seriesX;
+}
+
 void HeunWidget::updateChart() {
     double a = m_aSpinBox->value();
     int maxTime = m_timeSpinBox->value();

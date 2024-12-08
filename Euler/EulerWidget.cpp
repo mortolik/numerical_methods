@@ -80,6 +80,11 @@ EulerWidget::EulerWidget(EulerModel *model, QWidget *parent)
     setLayout(mainLayout);
 }
 
+QLineSeries *EulerWidget::getSeriesX() const
+{
+    return m_seriesX;
+}
+
 void EulerWidget::updateChart() {
     double a = m_aSpinBox->value();
     int maxTime = m_timeSpinBox->value();
