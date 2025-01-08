@@ -11,41 +11,50 @@ namespace Euler
 {
 
 EulerModel::EulerModel(double a, int steps, QObject *parent)
-    : QObject{parent}, m_a(a), m_x0(0), m_t0(0), m_dt(0.01), m_steps(steps),
+    : QObject{parent}, m_a(a), m_x0(0), m_t0(0), m_dt(0.001), m_steps(steps),
     m_gen(std::random_device{}()), m_dist(0.0, 1.0) {}
 
-
-double EulerModel::dxdt(double x, double a) {
+double EulerModel::dxdt(double x, double a)
+{
     return a - sin(x);
 }
+
 void EulerModel::method(QLineSeries *series_x, QLineSeries *series_dxdt,
-                        QLineSeries *series_clean_x, QLineSeries *series_clean_dxdt) {
-    double x = m_x0;
-    double t = m_t0;
+                        QLineSeries *series_clean_x, QLineSeries *series_clean_dxdt)
+{
+    double x = m_x0;  // Начальное значение x
+    double t = m_t0;  // Начальное время
+    double h = m_dt;  // Шаг интегрирования
+    double end_time = m_t0 + m_steps * h;  // Конечное время
+
     series_x->clear();
     series_dxdt->clear();
     series_clean_x->clear();
     series_clean_dxdt->clear();
 
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::normal_distribution<> dist(0.0, 1.0);
+    while (t < end_time) {
+        // Генерация шума
+        double xi_t = m_dist(m_gen);  // Гауссовский шум с нулевым средним и дисперсией 1
+        double Z_h = xi_t * sqrt(h);  // Учет стохастической природы
 
-    for (int i = 0; i < m_steps; ++i)
-    {
-        double xi_t = dist(m_gen);
-        double g = 1.0;
+        // Детерминированная часть
+        double f_x = dxdt(x, m_a);  // f(x) = a - sin(x)
 
-        double dx_dt_clean = dxdt(x, m_a);
-        double dx_dt_noisy = dx_dt_clean + g * xi_t;
+        // Стохастическая часть
+        double noise = 1.0 * Z_h;  // g = 1.0
 
+        // Обновление x
+        double x_new = x + h * f_x + noise;
+
+        // Сохранение данных
         series_clean_x->append(t, x);
-        series_clean_dxdt->append(t, dx_dt_clean);
-        series_x->append(t, x + g * xi_t);
-        series_dxdt->append(t, dx_dt_noisy);
+        series_clean_dxdt->append(t, f_x);
+        series_x->append(t, x_new);
+        series_dxdt->append(t, f_x + noise / h);
 
-        x += m_dt * dx_dt_clean;
-        t += m_dt;
+        // Обновление x и t
+        x = x_new;
+        t += h;
     }
 }
 

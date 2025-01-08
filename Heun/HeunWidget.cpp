@@ -103,10 +103,10 @@ void HeunWidget::updateChart()
     QLineSeries *cleanSeriesDxdt = new QLineSeries();
     QLineSeries *noisySeriesDxdt = new QLineSeries();
 
-    cleanSeriesX->setName("x(t) без шума");
-    noisySeriesX->setName("x(t) с шумом");
-    cleanSeriesDxdt->setName("dx/dt без шума");
-    noisySeriesDxdt->setName("dx/dt с шумом");
+    cleanSeriesX->setName("x(t) с шумом");
+    noisySeriesX->setName("Шум");
+    cleanSeriesDxdt->setName("dx/dt с шумом");
+    noisySeriesDxdt->setName("Шум");;
 
     QColor noisyColor = Qt::red;
     noisyColor.setAlpha(128);

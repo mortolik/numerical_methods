@@ -61,12 +61,12 @@ EulerWidget::EulerWidget(EulerModel *model, QWidget *parent)
     m_aSpinBox->setRange(-10.0, 10.0);
     m_aSpinBox->setSingleStep(0.1);
     m_aSpinBox->setPrefix("a = ");
-    m_aSpinBox->setValue(1.3);
+    m_aSpinBox->setValue(0.2);
 
     m_timeSpinBox = new QSpinBox();
     m_timeSpinBox->setRange(1, 1000);
     m_timeSpinBox->setPrefix("Время = ");
-    m_timeSpinBox->setValue(10);
+    m_timeSpinBox->setValue(1000);
 
     m_updateButton = new QPushButton("Обновить графики");
 
@@ -100,10 +100,10 @@ void EulerWidget::updateChart() {
     QLineSeries *cleanSeriesDxdt = new QLineSeries();
     QLineSeries *noisySeriesDxdt = new QLineSeries();
 
-    cleanSeriesX->setName("x(t) без шума");
-    noisySeriesX->setName("x(t) с шумом");
-    cleanSeriesDxdt->setName("dx/dt без шума");
-    noisySeriesDxdt->setName("dx/dt с шумом");
+    cleanSeriesX->setName("x(t) с шумом");
+    noisySeriesX->setName("Шум");
+    cleanSeriesDxdt->setName("dx/dt с шумом");
+    noisySeriesDxdt->setName("Шум");
 
     QColor noisyColor = Qt::red;
     noisyColor.setAlpha(128);
