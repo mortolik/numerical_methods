@@ -78,4 +78,38 @@ int EulerModel::getMaxSteps() const
     return 1000;
 }
 
+double EulerModel::computeSwitchDelay(double threshold, int numTrials)
+{
+    double totalDelay = 0.0;
+    int countValid = 0;
+
+    for (int trial = 0; trial < numTrials; ++trial)
+    {
+        double x = m_x0;
+        double t = m_t0;
+        double h = m_dt;
+
+        for (int i = 0; i < m_steps; ++i)
+        {
+            double xi_t = m_dist(m_gen);
+            double Z_h = xi_t * sqrt(h);
+            double f_x = dxdt(x, m_a);
+            double noise = 1.0 * Z_h;
+            double x_new = x + h * f_x + noise;
+
+            if (x_new >= threshold)
+            {
+                totalDelay += t;
+                ++countValid;
+                break;
+            }
+
+            x = x_new;
+            t += h;
+        }
+    }
+
+    return (countValid > 0) ? totalDelay / countValid : -1.0;
+}
+
 }

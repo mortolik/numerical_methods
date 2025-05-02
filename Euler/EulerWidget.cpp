@@ -8,6 +8,7 @@
 #include <QSpinBox>
 #include <QVBoxLayout>
 #include <QDebug>
+#include <QMessageBox>
 
 using namespace QtCharts;
 
@@ -72,12 +73,16 @@ EulerWidget::EulerWidget(EulerModel *model, QWidget *parent)
 
     connect(m_updateButton, &QPushButton::clicked, this, &EulerWidget::updateChart);
 
+    m_delayButton = new QPushButton("Посчитать задержку включения");
+    connect(m_delayButton, &QPushButton::clicked, this, &EulerWidget::computeSwitchDelay);
+
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->addWidget(m_chartViewX);
     mainLayout->addWidget(m_chartViewDxdt);
     mainLayout->addWidget(m_aSpinBox);
     mainLayout->addWidget(m_timeSpinBox);
     mainLayout->addWidget(m_updateButton);
+    mainLayout->addWidget(m_delayButton);
 
     setLayout(mainLayout);
 }
@@ -139,6 +144,24 @@ void EulerWidget::updateChart() {
                                                       [](const QPointF &a, const QPointF &b) { return a.y() < b.y(); });
         m_axisY_dxdt->setRange(minDxdt->y(), maxDxdt->y());
     }
+}
+
+void EulerWidget::computeSwitchDelay()
+{
+    double a = m_aSpinBox->value();
+    int maxTime = m_timeSpinBox->value();
+
+    m_eulerModel->setA(a);
+    double dt = static_cast<double>(maxTime) / 1000;
+    m_eulerModel->setDt(dt);
+
+    double threshold = M_PI;
+    int trials = 100;
+
+    double delay = m_eulerModel->computeSwitchDelay(threshold, trials);
+
+    QMessageBox::information(this, "Задержка включения",
+                             QString("Средняя задержка включения по %1 траекториям: %2").arg(trials).arg(delay, 0, 'f', 4));
 }
 
 

@@ -20,6 +20,7 @@ public:
     double getDt() const;
     int getMaxSteps() const;
 
+    double computeSwitchDelay(double threshold, int numTrials);
 private:
     double dxdt(double x, double a);
 

@@ -26,6 +26,7 @@ public:
 private slots:
     void updateChart();
 
+    void computeSwitchDelay();
 private:
     EulerModel *m_eulerModel;
     QtCharts::QChart *m_chartX;
@@ -37,6 +38,7 @@ private:
     QDoubleSpinBox *m_aSpinBox;
     QSpinBox *m_timeSpinBox;
     QPushButton *m_updateButton;
+    QPushButton *m_delayButton;
 
     QtCharts::QValueAxis *m_axisX_x;
     QtCharts::QValueAxis *m_axisY_x;
