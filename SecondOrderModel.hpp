@@ -1,4 +1,5 @@
 #pragma once
+#include <QtCharts>
 #include <QObject>
 #include <random>
 
@@ -11,6 +12,7 @@ public:
     void setA(double a);
     void setGamma(double gamma);
     double computeSwitchDelay(double threshold, int trials);
+    void simulateSingleTrajectory(QtCharts::QLineSeries *series_x);
 
 private:
     double m_a;

@@ -22,19 +22,46 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     m_timeSpinBox->setPrefix("Время = ");
     m_timeSpinBox->setValue(1000);
 
-    m_computeButton = new QPushButton("Посчитать задержку включения");
-
-    connect(m_computeButton, &QPushButton::clicked, this, &SecondOrderWidget::computeSwitchDelay);
-
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->addWidget(m_aSpinBox);
     layout->addWidget(m_gammaSpinBox);
     layout->addWidget(m_timeSpinBox);
-    layout->addWidget(m_computeButton);
+
+    m_series = new QLineSeries();
+    m_chart = new QChart();
+    m_chart->addSeries(m_series);
+    m_chart->setTitle("x(t) — траектория с шумом");
+
+    QValueAxis *axisX = new QValueAxis();
+    axisX->setTitleText("t");
+    axisX->setLabelFormat("%.2f");
+    m_chart->addAxis(axisX, Qt::AlignBottom);
+    m_series->attachAxis(axisX);
+
+    QValueAxis *axisY = new QValueAxis();
+    axisY->setTitleText("x(t)");
+    axisY->setLabelFormat("%.2f");
+    m_chart->addAxis(axisY, Qt::AlignLeft);
+    m_series->attachAxis(axisY);
+
+    m_chartView = new QChartView(m_chart);
+    m_chartView->setRenderHint(QPainter::Antialiasing);
+
+    m_runButton = new QPushButton("Запустить моделирование");
+    connect(m_runButton, &QPushButton::clicked, this, &SecondOrderWidget::runSimulation);
+
+    m_resultLabel = new QLabel("Задержка включения: -");
+    m_resultLabel->setAlignment(Qt::AlignCenter);
+    m_resultLabel->setStyleSheet("font-weight: bold; font-size: 14px;");
+    layout->addWidget(m_chartView);
+    layout->addWidget(m_runButton);
+    layout->addWidget(m_resultLabel);
+
     setLayout(layout);
 }
 
-void SecondOrderWidget::computeSwitchDelay() {
+void SecondOrderWidget::runSimulation()
+{
     double a = m_aSpinBox->value();
     double gamma = m_gammaSpinBox->value();
     int maxTime = m_timeSpinBox->value();
@@ -44,11 +71,24 @@ void SecondOrderWidget::computeSwitchDelay() {
     double dt = static_cast<double>(maxTime) / 1000;
     m_model->setDt(dt);
 
+    m_model->simulateSingleTrajectory(m_series);
+
+    auto points = m_series->pointsVector();
+    if (!points.empty()) {
+        double minY = points[0].y(), maxY = points[0].y();
+        for (const QPointF &p : points)
+        {
+            if (p.y() < minY) minY = p.y();
+            if (p.y() > maxY) maxY = p.y();
+        }
+        m_chart->axes(Qt::Horizontal).first()->setRange(0, points.last().x());
+        m_chart->axes(Qt::Vertical).first()->setRange(minY, maxY);
+    }
+
     double threshold = M_PI;
     int trials = 100;
-
     double delay = m_model->computeSwitchDelay(threshold, trials);
 
-    QMessageBox::information(this, "Задержка включения (2 порядок)",
-                             QString("Средняя задержка по %1 траекториям: %2").arg(trials).arg(delay, 0, 'f', 4));
+    m_resultLabel->setText(QString("Средняя задержка: %1 (по %2 траекториям)").arg(delay, 0, 'f', 4).arg(trials));
 }
+
