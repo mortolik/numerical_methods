@@ -16,6 +16,8 @@ SOURCES += \
     Euler/EulerWidget.cpp \
     Heun/HeunModel.cpp \
     Heun/HeunWidget.cpp \
+    SecondOrderModel.cpp \
+    SecondOrderWidget.cpp \
     main.cpp \
     MainWindow.cpp
 
@@ -24,7 +26,9 @@ HEADERS += \
     Euler/EulerWidget.hpp \
     Heun/HeunModel.hpp \
     Heun/HeunWidget.hpp \
-    MainWindow.hpp
+    MainWindow.hpp \
+    SecondOrderModel.hpp \
+    SecondOrderWidget.hpp
 
 FORMS += \
     mainwindow.ui

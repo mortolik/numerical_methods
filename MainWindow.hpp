@@ -1,4 +1,6 @@
 #pragma once
+#include "SecondOrderModel.hpp"
+#include "SecondOrderWidget.hpp"
 #include <QMainWindow>
 
 namespace Euler
@@ -32,4 +34,7 @@ private:
 
     Heun::HeunModel* m_heunModel {nullptr};
     Heun::HeunWidget* m_heunWidget {nullptr};
+
+    SecondOrderModel *m_secondOrderModel {nullptr};
+    SecondOrderWidget *m_secondOrderWidget {nullptr};
 };

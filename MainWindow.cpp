@@ -3,6 +3,8 @@
 #include "Euler/EulerWidget.hpp"
 #include "Heun/HeunModel.hpp"
 #include "Heun/HeunWidget.hpp"
+#include "SecondOrderModel.hpp"
+#include "SecondOrderWidget.hpp"
 #include <QHBoxLayout>
 
 MainWindow::MainWindow(QWidget *parent)
@@ -22,6 +24,12 @@ MainWindow::MainWindow(QWidget *parent)
 
     tabWidget->addTab(m_eulerWidget, "Метод Эйлера");
     tabWidget->addTab(m_heunWidget, "Метод Хьюна");
+
+    m_secondOrderModel = new SecondOrderModel(0.5, 0.5, 1000);
+    m_secondOrderModel->setDt(0.01);
+    m_secondOrderWidget = new SecondOrderWidget(m_secondOrderModel, this);
+    tabWidget->addTab(m_secondOrderWidget, "2-й порядок");
+
 
     setMinimumSize(800, 600);
 
