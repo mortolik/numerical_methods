@@ -16,6 +16,7 @@ public:
 
 private slots:
     void runSimulation();
+    void runMSTvsNoiseExperiment();
 
 
 private:
@@ -30,8 +31,14 @@ private:
     QtCharts::QLineSeries *m_seriesClean;
 
     QPushButton *m_runButton;
+    QPushButton *m_mstVsNoiseButton;
     QLabel *m_resultLabel;
 
     QCheckBox *m_useHeunCheckBox;
+
+    // Для графика зависимости MST от шума
+    QtCharts::QChart *m_mstChart;
+    QtCharts::QChartView *m_mstChartView;
+    QtCharts::QLineSeries *m_mstSeries;
 
 };

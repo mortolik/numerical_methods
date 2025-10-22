@@ -73,7 +73,61 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     layout->addWidget(m_runButton);
     layout->addWidget(m_resultLabel);
 
+    // Кнопка и график для MST vs Noise
+    m_mstVsNoiseButton = new QPushButton("Построить MST vs шум");
+    connect(m_mstVsNoiseButton, &QPushButton::clicked, this, &SecondOrderWidget::runMSTvsNoiseExperiment);
+    layout->addWidget(m_mstVsNoiseButton);
+
+    m_mstSeries = new QLineSeries();
+    m_mstSeries->setName("MST vs D");
+    m_mstChart = new QChart();
+    m_mstChart->addSeries(m_mstSeries);
+    m_mstChart->setTitle("Среднее время переключения vs интенсивность шума");
+    QValueAxis *mstAxisX = new QValueAxis();
+    mstAxisX->setTitleText("Интенсивность шума D");
+    mstAxisX->setLabelFormat("%.3f");
+    m_mstChart->addAxis(mstAxisX, Qt::AlignBottom);
+    m_mstSeries->attachAxis(mstAxisX);
+    QValueAxis *mstAxisY = new QValueAxis();
+    mstAxisY->setTitleText("Среднее время переключения");
+    mstAxisY->setLabelFormat("%.2f");
+    m_mstChart->addAxis(mstAxisY, Qt::AlignLeft);
+    m_mstSeries->attachAxis(mstAxisY);
+    m_mstChartView = new QChartView(m_mstChart);
+    m_mstChartView->setRenderHint(QPainter::Antialiasing);
+    layout->addWidget(m_mstChartView);
+
     setLayout(layout);
+}
+void SecondOrderWidget::runMSTvsNoiseExperiment()
+{
+    // Пример диапазона интенсивностей шума
+    std::vector<double> noiseIntensities;
+    for (double D = 0.01; D <= 0.5; D += 0.02) noiseIntensities.push_back(D);
+    double threshold = M_PI;
+    int trials = 100;
+    // Можно добавить параметры переключающего сигнала через UI
+    bool withSwitching = false;
+    double switchingAmplitude = 0.0;
+    double switchingFrequency = 1.0;
+    auto results = m_model->computeMSTvsNoise(noiseIntensities, threshold, trials, withSwitching, switchingAmplitude, switchingFrequency);
+    m_mstSeries->clear();
+    for (const auto& pair : results) {
+        m_mstSeries->append(pair.first, pair.second);
+    }
+    // Автоматически подобрать оси
+    if (!results.empty()) {
+        double minX = results.front().first, maxX = results.back().first;
+        double minY = results.front().second, maxY = results.front().second;
+        for (const auto& pair : results) {
+            if (pair.second > 0) {
+                if (pair.second < minY) minY = pair.second;
+                if (pair.second > maxY) maxY = pair.second;
+            }
+        }
+        m_mstChart->axes(Qt::Horizontal).first()->setRange(minX, maxX);
+        m_mstChart->axes(Qt::Vertical).first()->setRange(minY, maxY);
+    }
 }
 
 void SecondOrderWidget::runSimulation()

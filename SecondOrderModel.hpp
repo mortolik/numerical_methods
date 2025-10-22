@@ -16,6 +16,9 @@ public:
                                   QLineSeries *series_clean);
     void simulateTrajectoryHeun(QtCharts::QLineSeries *series_noise,
                                 QtCharts::QLineSeries *series_clean);
+    
+        // Новый метод для серии экспериментов по MST
+        std::vector<std::pair<double, double>> computeMSTvsNoise(const std::vector<double>& noiseIntensities, double threshold, int trials, bool withSwitchingSignal = false, double switchingAmplitude = 0.0, double switchingFrequency = 1.0);
 
 
 private:

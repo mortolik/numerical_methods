@@ -1,6 +1,47 @@
 #include "SecondOrderModel.hpp""
 #include <cmath>
 
+// Новый метод для серии экспериментов по MST
+std::vector<std::pair<double, double>> SecondOrderModel::computeMSTvsNoise(const std::vector<double>& noiseIntensities, double threshold, int trials, bool withSwitchingSignal, double switchingAmplitude, double switchingFrequency) {
+    std::vector<std::pair<double, double>> results;
+    double oldStd = m_dist.stddev();
+    for (double D : noiseIntensities) {
+        // Установить новую интенсивность шума (stddev)
+        m_dist = std::normal_distribution<>(0.0, sqrt(D));
+        double totalDelay = 0.0;
+        int count = 0;
+        for (int trial = 0; trial < trials; ++trial) {
+            double x = m_x0;
+            double v = m_v0;
+            double t = 0.0;
+            double h = m_dt;
+            for (int i = 0; i < m_steps; ++i) {
+                double xi_t = m_dist(m_gen);
+                double noise = xi_t * sqrt(h);
+                double switching = 0.0;
+                if (withSwitchingSignal) {
+                    switching = switchingAmplitude * sin(2 * M_PI * switchingFrequency * t);
+                }
+                double a_det = m_a - sin(x) - m_gamma * v + switching;
+                double a_total = a_det + noise;
+                v += h * a_total;
+                x += h * v;
+                t += h;
+                if (x >= threshold) {
+                    totalDelay += t;
+                    ++count;
+                    break;
+                }
+            }
+        }
+        double mst = (count > 0) ? totalDelay / count : -1.0;
+        results.emplace_back(D, mst);
+    }
+    // Восстановить исходную дисперсию
+    m_dist = std::normal_distribution<>(0.0, oldStd);
+    return results;
+}
+
 SecondOrderModel::SecondOrderModel(double a, double gamma, int steps, QObject *parent)
     : QObject{parent}, m_a(a), m_gamma(gamma),
     m_x0(0.0), m_v0(0.0), m_dt(0.001), m_steps(steps),
