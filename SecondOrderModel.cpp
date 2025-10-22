@@ -42,10 +42,15 @@ std::vector<std::pair<double, double>> SecondOrderModel::computeMSTvsNoise(const
     return results;
 }
 
+
 SecondOrderModel::SecondOrderModel(double a, double gamma, int steps, QObject *parent)
     : QObject{parent}, m_a(a), m_gamma(gamma),
     m_x0(0.0), m_v0(0.0), m_dt(0.001), m_steps(steps),
     m_gen(std::random_device{}()), m_dist(0.0, 1.0) {}
+
+void SecondOrderModel::setSeed(int seed) {
+    m_gen.seed(seed);
+}
 
 void SecondOrderModel::setDt(double dt) {
     m_dt = dt;

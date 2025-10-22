@@ -94,10 +94,27 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     m_useHeunCheckBox = new QCheckBox("Использовать Хьюна (вместо Эйлера)");
     m_useHeunCheckBox->setChecked(false);
 
+    // --- Seed для генератора случайных чисел ---
+    m_seedSpinBox = new QSpinBox();
+    m_seedSpinBox->setFixedWidth(spinBoxWidth);
+    m_seedSpinBox->setRange(0, 1000000);
+    m_seedSpinBox->setPrefix("Seed = ");
+    m_seedSpinBox->setValue(42);
+
+    m_randomSeedCheckBox = new QCheckBox("Рандомный seed");
+    m_randomSeedCheckBox->setFixedWidth(spinBoxWidth);
+    m_randomSeedCheckBox->setChecked(true);
+    m_seedSpinBox->setEnabled(false);
+    connect(m_randomSeedCheckBox, &QCheckBox::toggled, this, [this](bool checked){
+        m_seedSpinBox->setEnabled(!checked);
+    });
+
     paramsLayout->addWidget(m_aSpinBox);
     paramsLayout->addWidget(m_gammaSpinBox);
     paramsLayout->addWidget(m_timeSpinBox);
     paramsLayout->addWidget(m_useHeunCheckBox);
+    paramsLayout->addWidget(m_randomSeedCheckBox);
+    paramsLayout->addWidget(m_seedSpinBox);
     paramsLayout->addWidget(m_dMinSpinBox);
     paramsLayout->addWidget(m_dMaxSpinBox);
     paramsLayout->addWidget(m_dStepSpinBox);
@@ -199,6 +216,12 @@ void SecondOrderWidget::runMSTvsNoiseExperiment()
     bool withSwitching = m_switchingSignalCheckBox->isChecked();
     double switchingAmplitude = m_switchingAmplitudeSpinBox->value();
     double switchingFrequency = m_switchingFrequencySpinBox->value();
+    // Установить seed перед экспериментом
+    if (m_randomSeedCheckBox->isChecked()) {
+        m_model->setSeed(static_cast<int>(std::random_device{}()));
+    } else {
+        m_model->setSeed(m_seedSpinBox->value());
+    }
     auto results = m_model->computeMSTvsNoise(noiseIntensities, threshold, trials, withSwitching, switchingAmplitude, switchingFrequency);
     m_mstSeries->clear();
     for (const auto& pair : results) {
@@ -225,10 +248,17 @@ void SecondOrderWidget::runSimulation()
     double gamma = m_gammaSpinBox->value();
     int maxTime = m_timeSpinBox->value();
 
+
     m_model->setA(a);
     m_model->setGamma(gamma);
     double dt = static_cast<double>(maxTime) / 1000;
     m_model->setDt(dt);
+    // Установить seed перед одиночным запуском
+    if (m_randomSeedCheckBox->isChecked()) {
+        m_model->setSeed(static_cast<int>(std::random_device{}()));
+    } else {
+        m_model->setSeed(m_seedSpinBox->value());
+    }
 
     if (m_useHeunCheckBox->isChecked())
     {

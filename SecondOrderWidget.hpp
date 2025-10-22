@@ -24,6 +24,8 @@ private:
     QDoubleSpinBox *m_aSpinBox;
     QDoubleSpinBox *m_gammaSpinBox;
     QSpinBox *m_timeSpinBox;
+    QSpinBox *m_seedSpinBox;
+    QCheckBox *m_randomSeedCheckBox;
 
     QtCharts::QChart *m_chart;
     QtCharts::QChartView *m_chartView;
