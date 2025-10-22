@@ -26,10 +26,14 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     QHBoxLayout *mainLayout = new QHBoxLayout(this);
     QVBoxLayout *paramsLayout = new QVBoxLayout();
     QVBoxLayout *chartsLayout = new QVBoxLayout();
+    // Настроить внешние отступы
+    mainLayout->setContentsMargins(10, 10, 10, 10);
+    paramsLayout->setContentsMargins(0, 0, 0, 0);
+    chartsLayout->setContentsMargins(0, 0, 0, 0);
 
     // Параметры моделирования
     // --- Одинаковая ширина для всех спинбоксов ---
-    int spinBoxWidth = 150;
+    int spinBoxWidth = 180;
     m_aSpinBox->setFixedWidth(spinBoxWidth);
     m_gammaSpinBox->setFixedWidth(spinBoxWidth);
     m_timeSpinBox->setFixedWidth(spinBoxWidth);
@@ -102,6 +106,10 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     paramsLayout->addWidget(m_switchingSignalCheckBox);
     paramsLayout->addWidget(m_switchingAmplitudeSpinBox);
     paramsLayout->addWidget(m_switchingFrequencySpinBox);
+    // Фиксированная ширина левой панели
+    QWidget *paramsWidget = new QWidget;
+    paramsWidget->setLayout(paramsLayout);
+    paramsWidget->setFixedWidth(220);
 
     // --- Кнопки зелёного цвета ---
     m_mstVsNoiseButton = new QPushButton("Построить MST vs шум");
@@ -174,8 +182,8 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     m_mstChartView->setRenderHint(QPainter::Antialiasing);
     chartsLayout->addWidget(m_mstChartView);
 
-    mainLayout->addLayout(paramsLayout, 1); // stretch=1
-    mainLayout->addLayout(chartsLayout, 2); // stretch=2
+    mainLayout->addWidget(paramsWidget, 0);
+    mainLayout->addLayout(chartsLayout, 2);
     setLayout(mainLayout);
 }
 void SecondOrderWidget::runMSTvsNoiseExperiment()
@@ -248,6 +256,6 @@ void SecondOrderWidget::runSimulation()
     int trials = 100;
     double delay = m_model->computeSwitchDelay(threshold, trials);
 
-    m_resultLabel->setText(QString("Средняя задержка: %1 (по %2 траекториям)").arg(delay, 0, 'f', 4).arg(trials));
+    m_resultLabel->setText(QString("Средняя задержка: %1\n(по %2 траекториям)").arg(delay, 0, 'f', 4).arg(trials));
 }
 
