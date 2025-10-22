@@ -1,4 +1,4 @@
-#include "SecondOrderModel.hpp""
+#include "SecondOrderModel.hpp"
 #include <cmath>
 
 // Новый метод для серии экспериментов по MST
