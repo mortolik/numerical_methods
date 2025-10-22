@@ -22,15 +22,106 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     m_timeSpinBox->setPrefix("Время = ");
     m_timeSpinBox->setValue(1000);
 
-    QVBoxLayout *layout = new QVBoxLayout(this);
-    layout->addWidget(m_aSpinBox);
-    layout->addWidget(m_gammaSpinBox);
-    layout->addWidget(m_timeSpinBox);
+    // --- Новый layout: параметры слева, графики справа ---
+    QHBoxLayout *mainLayout = new QHBoxLayout(this);
+    QVBoxLayout *paramsLayout = new QVBoxLayout();
+    QVBoxLayout *chartsLayout = new QVBoxLayout();
+
+    // Параметры моделирования
+    // --- Одинаковая ширина для всех спинбоксов ---
+    int spinBoxWidth = 150;
+    m_aSpinBox->setFixedWidth(spinBoxWidth);
+    m_gammaSpinBox->setFixedWidth(spinBoxWidth);
+    m_timeSpinBox->setFixedWidth(spinBoxWidth);
+
+    // --- Элементы управления для MST-эксперимента ---
+    m_dMinSpinBox = new QDoubleSpinBox();
+    m_dMinSpinBox->setFixedWidth(spinBoxWidth);
+    m_dMinSpinBox->setRange(0.0, 10.0);
+    m_dMinSpinBox->setSingleStep(0.01);
+    m_dMinSpinBox->setPrefix("D min = ");
+    m_dMinSpinBox->setValue(0.01);
+
+    m_dMaxSpinBox = new QDoubleSpinBox();
+    m_dMaxSpinBox->setFixedWidth(spinBoxWidth);
+    m_dMaxSpinBox->setRange(0.0, 10.0);
+    m_dMaxSpinBox->setSingleStep(0.01);
+    m_dMaxSpinBox->setPrefix("D max = ");
+    m_dMaxSpinBox->setValue(0.5);
+
+    m_dStepSpinBox = new QDoubleSpinBox();
+    m_dStepSpinBox->setFixedWidth(spinBoxWidth);
+    m_dStepSpinBox->setRange(0.001, 1.0);
+    m_dStepSpinBox->setSingleStep(0.001);
+    m_dStepSpinBox->setPrefix("D шаг = ");
+    m_dStepSpinBox->setValue(0.02);
+
+    m_thresholdSpinBox = new QDoubleSpinBox();
+    m_thresholdSpinBox->setFixedWidth(spinBoxWidth);
+    m_thresholdSpinBox->setRange(0.0, 10.0);
+    m_thresholdSpinBox->setSingleStep(0.01);
+    m_thresholdSpinBox->setPrefix("Порог = ");
+    m_thresholdSpinBox->setValue(M_PI);
+
+    m_trialsSpinBox = new QSpinBox();
+    m_trialsSpinBox->setFixedWidth(spinBoxWidth);
+    m_trialsSpinBox->setRange(1, 10000);
+    m_trialsSpinBox->setPrefix("Траекторий = ");
+    m_trialsSpinBox->setValue(100);
+
+    m_switchingSignalCheckBox = new QCheckBox("Переключающий сигнал");
+    m_switchingSignalCheckBox->setFixedWidth(spinBoxWidth);
+
+    m_switchingAmplitudeSpinBox = new QDoubleSpinBox();
+    m_switchingAmplitudeSpinBox->setFixedWidth(spinBoxWidth);
+    m_switchingAmplitudeSpinBox->setRange(0.0, 10.0);
+    m_switchingAmplitudeSpinBox->setSingleStep(0.01);
+    m_switchingAmplitudeSpinBox->setPrefix("Амплитуда = ");
+    m_switchingAmplitudeSpinBox->setValue(0.0);
+
+    m_switchingFrequencySpinBox = new QDoubleSpinBox();
+    m_switchingFrequencySpinBox->setFixedWidth(spinBoxWidth);
+    m_switchingFrequencySpinBox->setRange(0.01, 10.0);
+    m_switchingFrequencySpinBox->setSingleStep(0.01);
+    m_switchingFrequencySpinBox->setPrefix("Частота = ");
+    m_switchingFrequencySpinBox->setValue(1.0);
+
+    // --- Вертикальное размещение всех элементов ---
     m_useHeunCheckBox = new QCheckBox("Использовать Хьюна (вместо Эйлера)");
-    m_useHeunCheckBox->setChecked(false);  // по умолчанию Эйлер
+    m_useHeunCheckBox->setChecked(false);
 
-    layout->addWidget(m_useHeunCheckBox);
+    paramsLayout->addWidget(m_aSpinBox);
+    paramsLayout->addWidget(m_gammaSpinBox);
+    paramsLayout->addWidget(m_timeSpinBox);
+    paramsLayout->addWidget(m_useHeunCheckBox);
+    paramsLayout->addWidget(m_dMinSpinBox);
+    paramsLayout->addWidget(m_dMaxSpinBox);
+    paramsLayout->addWidget(m_dStepSpinBox);
+    paramsLayout->addWidget(m_thresholdSpinBox);
+    paramsLayout->addWidget(m_trialsSpinBox);
+    paramsLayout->addWidget(m_switchingSignalCheckBox);
+    paramsLayout->addWidget(m_switchingAmplitudeSpinBox);
+    paramsLayout->addWidget(m_switchingFrequencySpinBox);
 
+    // --- Кнопки зелёного цвета ---
+    m_mstVsNoiseButton = new QPushButton("Построить MST vs шум");
+    m_mstVsNoiseButton->setFixedWidth(180);
+    m_mstVsNoiseButton->setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;");
+    m_runButton = new QPushButton("Запустить моделирование");
+    m_runButton->setFixedWidth(180);
+    m_runButton->setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;");
+    connect(m_runButton, &QPushButton::clicked, this, &SecondOrderWidget::runSimulation);
+    connect(m_mstVsNoiseButton, &QPushButton::clicked, this, &SecondOrderWidget::runMSTvsNoiseExperiment);
+    paramsLayout->addWidget(m_runButton);
+    paramsLayout->addWidget(m_mstVsNoiseButton);
+
+    m_resultLabel = new QLabel("Задержка включения: -");
+    m_resultLabel->setAlignment(Qt::AlignCenter);
+    m_resultLabel->setStyleSheet("font-weight: bold; font-size: 14px;");
+    paramsLayout->addWidget(m_resultLabel);
+    paramsLayout->addStretch();
+
+    // --- Графики ---
     m_series = new QLineSeries();
     m_chart = new QChart();
     m_chart->addSeries(m_series);
@@ -62,90 +153,7 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
 
     m_chartView = new QChartView(m_chart);
     m_chartView->setRenderHint(QPainter::Antialiasing);
-
-    m_runButton = new QPushButton("Запустить моделирование");
-    connect(m_runButton, &QPushButton::clicked, this, &SecondOrderWidget::runSimulation);
-
-    m_resultLabel = new QLabel("Задержка включения: -");
-    m_resultLabel->setAlignment(Qt::AlignCenter);
-    m_resultLabel->setStyleSheet("font-weight: bold; font-size: 14px;");
-    layout->addWidget(m_chartView);
-    layout->addWidget(m_runButton);
-    layout->addWidget(m_resultLabel);
-
-
-
-    // --- Элементы управления для MST-эксперимента ---
-    QHBoxLayout *mstRow1 = new QHBoxLayout();
-    mstRow1->setAlignment(Qt::AlignLeft);
-    m_dMinSpinBox = new QDoubleSpinBox();
-    m_dMinSpinBox->setFixedWidth(120);
-    m_dMinSpinBox->setRange(0.0, 10.0);
-    m_dMinSpinBox->setSingleStep(0.01);
-    m_dMinSpinBox->setPrefix("D min = ");
-    m_dMinSpinBox->setValue(0.01);
-    mstRow1->addWidget(m_dMinSpinBox);
-
-    m_dMaxSpinBox = new QDoubleSpinBox();
-    m_dMaxSpinBox->setFixedWidth(120);
-    m_dMaxSpinBox->setRange(0.0, 10.0);
-    m_dMaxSpinBox->setSingleStep(0.01);
-    m_dMaxSpinBox->setPrefix("D max = ");
-    m_dMaxSpinBox->setValue(0.5);
-    mstRow1->addWidget(m_dMaxSpinBox);
-
-    m_dStepSpinBox = new QDoubleSpinBox();
-    m_dStepSpinBox->setFixedWidth(120);
-    m_dStepSpinBox->setRange(0.001, 1.0);
-    m_dStepSpinBox->setSingleStep(0.001);
-    m_dStepSpinBox->setPrefix("D шаг = ");
-    m_dStepSpinBox->setValue(0.02);
-    mstRow1->addWidget(m_dStepSpinBox);
-
-    m_thresholdSpinBox = new QDoubleSpinBox();
-    m_thresholdSpinBox->setFixedWidth(120);
-    m_thresholdSpinBox->setRange(0.0, 10.0);
-    m_thresholdSpinBox->setSingleStep(0.01);
-    m_thresholdSpinBox->setPrefix("Порог = ");
-    m_thresholdSpinBox->setValue(M_PI);
-    mstRow1->addWidget(m_thresholdSpinBox);
-
-    m_trialsSpinBox = new QSpinBox();
-    m_trialsSpinBox->setFixedWidth(120);
-    m_trialsSpinBox->setRange(1, 10000);
-    m_trialsSpinBox->setPrefix("Траекторий = ");
-    m_trialsSpinBox->setValue(100);
-    mstRow1->addWidget(m_trialsSpinBox);
-
-    m_switchingSignalCheckBox = new QCheckBox("Переключающий сигнал");
-    m_switchingSignalCheckBox->setFixedWidth(160);
-    mstRow1->addWidget(m_switchingSignalCheckBox);
-    layout->addLayout(mstRow1);
-
-    QHBoxLayout *mstRow2 = new QHBoxLayout();
-    mstRow2->setAlignment(Qt::AlignLeft);
-    m_switchingAmplitudeSpinBox = new QDoubleSpinBox();
-    m_switchingAmplitudeSpinBox->setFixedWidth(140);
-    m_switchingAmplitudeSpinBox->setRange(0.0, 10.0);
-    m_switchingAmplitudeSpinBox->setSingleStep(0.01);
-    m_switchingAmplitudeSpinBox->setPrefix("Амплитуда = ");
-    m_switchingAmplitudeSpinBox->setValue(0.0);
-    mstRow2->addWidget(m_switchingAmplitudeSpinBox);
-
-    m_switchingFrequencySpinBox = new QDoubleSpinBox();
-    m_switchingFrequencySpinBox->setFixedWidth(140);
-    m_switchingFrequencySpinBox->setRange(0.01, 10.0);
-    m_switchingFrequencySpinBox->setSingleStep(0.01);
-    m_switchingFrequencySpinBox->setPrefix("Частота = ");
-    m_switchingFrequencySpinBox->setValue(1.0);
-    mstRow2->addWidget(m_switchingFrequencySpinBox);
-    layout->addLayout(mstRow2);
-
-    m_mstVsNoiseButton = new QPushButton("Построить MST vs шум");
-    m_mstVsNoiseButton->setFixedWidth(180);
-    m_runButton->setFixedWidth(180);
-    connect(m_mstVsNoiseButton, &QPushButton::clicked, this, &SecondOrderWidget::runMSTvsNoiseExperiment);
-    layout->addWidget(m_mstVsNoiseButton);
+    chartsLayout->addWidget(m_chartView);
 
     m_mstSeries = new QLineSeries();
     m_mstSeries->setName("MST vs D");
@@ -164,9 +172,11 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     m_mstSeries->attachAxis(mstAxisY);
     m_mstChartView = new QChartView(m_mstChart);
     m_mstChartView->setRenderHint(QPainter::Antialiasing);
-    layout->addWidget(m_mstChartView);
+    chartsLayout->addWidget(m_mstChartView);
 
-    setLayout(layout);
+    mainLayout->addLayout(paramsLayout, 1); // stretch=1
+    mainLayout->addLayout(chartsLayout, 2); // stretch=2
+    setLayout(mainLayout);
 }
 void SecondOrderWidget::runMSTvsNoiseExperiment()
 {
