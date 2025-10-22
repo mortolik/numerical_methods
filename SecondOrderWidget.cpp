@@ -73,8 +73,77 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     layout->addWidget(m_runButton);
     layout->addWidget(m_resultLabel);
 
-    // Кнопка и график для MST vs Noise
+
+
+    // --- Элементы управления для MST-эксперимента ---
+    QHBoxLayout *mstRow1 = new QHBoxLayout();
+    mstRow1->setAlignment(Qt::AlignLeft);
+    m_dMinSpinBox = new QDoubleSpinBox();
+    m_dMinSpinBox->setFixedWidth(120);
+    m_dMinSpinBox->setRange(0.0, 10.0);
+    m_dMinSpinBox->setSingleStep(0.01);
+    m_dMinSpinBox->setPrefix("D min = ");
+    m_dMinSpinBox->setValue(0.01);
+    mstRow1->addWidget(m_dMinSpinBox);
+
+    m_dMaxSpinBox = new QDoubleSpinBox();
+    m_dMaxSpinBox->setFixedWidth(120);
+    m_dMaxSpinBox->setRange(0.0, 10.0);
+    m_dMaxSpinBox->setSingleStep(0.01);
+    m_dMaxSpinBox->setPrefix("D max = ");
+    m_dMaxSpinBox->setValue(0.5);
+    mstRow1->addWidget(m_dMaxSpinBox);
+
+    m_dStepSpinBox = new QDoubleSpinBox();
+    m_dStepSpinBox->setFixedWidth(120);
+    m_dStepSpinBox->setRange(0.001, 1.0);
+    m_dStepSpinBox->setSingleStep(0.001);
+    m_dStepSpinBox->setPrefix("D шаг = ");
+    m_dStepSpinBox->setValue(0.02);
+    mstRow1->addWidget(m_dStepSpinBox);
+
+    m_thresholdSpinBox = new QDoubleSpinBox();
+    m_thresholdSpinBox->setFixedWidth(120);
+    m_thresholdSpinBox->setRange(0.0, 10.0);
+    m_thresholdSpinBox->setSingleStep(0.01);
+    m_thresholdSpinBox->setPrefix("Порог = ");
+    m_thresholdSpinBox->setValue(M_PI);
+    mstRow1->addWidget(m_thresholdSpinBox);
+
+    m_trialsSpinBox = new QSpinBox();
+    m_trialsSpinBox->setFixedWidth(120);
+    m_trialsSpinBox->setRange(1, 10000);
+    m_trialsSpinBox->setPrefix("Траекторий = ");
+    m_trialsSpinBox->setValue(100);
+    mstRow1->addWidget(m_trialsSpinBox);
+
+    m_switchingSignalCheckBox = new QCheckBox("Переключающий сигнал");
+    m_switchingSignalCheckBox->setFixedWidth(160);
+    mstRow1->addWidget(m_switchingSignalCheckBox);
+    layout->addLayout(mstRow1);
+
+    QHBoxLayout *mstRow2 = new QHBoxLayout();
+    mstRow2->setAlignment(Qt::AlignLeft);
+    m_switchingAmplitudeSpinBox = new QDoubleSpinBox();
+    m_switchingAmplitudeSpinBox->setFixedWidth(140);
+    m_switchingAmplitudeSpinBox->setRange(0.0, 10.0);
+    m_switchingAmplitudeSpinBox->setSingleStep(0.01);
+    m_switchingAmplitudeSpinBox->setPrefix("Амплитуда = ");
+    m_switchingAmplitudeSpinBox->setValue(0.0);
+    mstRow2->addWidget(m_switchingAmplitudeSpinBox);
+
+    m_switchingFrequencySpinBox = new QDoubleSpinBox();
+    m_switchingFrequencySpinBox->setFixedWidth(140);
+    m_switchingFrequencySpinBox->setRange(0.01, 10.0);
+    m_switchingFrequencySpinBox->setSingleStep(0.01);
+    m_switchingFrequencySpinBox->setPrefix("Частота = ");
+    m_switchingFrequencySpinBox->setValue(1.0);
+    mstRow2->addWidget(m_switchingFrequencySpinBox);
+    layout->addLayout(mstRow2);
+
     m_mstVsNoiseButton = new QPushButton("Построить MST vs шум");
+    m_mstVsNoiseButton->setFixedWidth(180);
+    m_runButton->setFixedWidth(180);
     connect(m_mstVsNoiseButton, &QPushButton::clicked, this, &SecondOrderWidget::runMSTvsNoiseExperiment);
     layout->addWidget(m_mstVsNoiseButton);
 
@@ -101,15 +170,17 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
 }
 void SecondOrderWidget::runMSTvsNoiseExperiment()
 {
-    // Пример диапазона интенсивностей шума
+    // Диапазон интенсивностей шума из UI
     std::vector<double> noiseIntensities;
-    for (double D = 0.01; D <= 0.5; D += 0.02) noiseIntensities.push_back(D);
-    double threshold = M_PI;
-    int trials = 100;
-    // Можно добавить параметры переключающего сигнала через UI
-    bool withSwitching = false;
-    double switchingAmplitude = 0.0;
-    double switchingFrequency = 1.0;
+    double dMin = m_dMinSpinBox->value();
+    double dMax = m_dMaxSpinBox->value();
+    double dStep = m_dStepSpinBox->value();
+    for (double D = dMin; D <= dMax + 1e-8; D += dStep) noiseIntensities.push_back(D);
+    double threshold = m_thresholdSpinBox->value();
+    int trials = m_trialsSpinBox->value();
+    bool withSwitching = m_switchingSignalCheckBox->isChecked();
+    double switchingAmplitude = m_switchingAmplitudeSpinBox->value();
+    double switchingFrequency = m_switchingFrequencySpinBox->value();
     auto results = m_model->computeMSTvsNoise(noiseIntensities, threshold, trials, withSwitching, switchingAmplitude, switchingFrequency);
     m_mstSeries->clear();
     for (const auto& pair : results) {

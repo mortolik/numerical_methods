@@ -36,6 +36,16 @@ private:
 
     QCheckBox *m_useHeunCheckBox;
 
+    // Для MST-эксперимента
+    QDoubleSpinBox *m_dMinSpinBox;
+    QDoubleSpinBox *m_dMaxSpinBox;
+    QDoubleSpinBox *m_dStepSpinBox;
+    QDoubleSpinBox *m_thresholdSpinBox;
+    QSpinBox *m_trialsSpinBox;
+    QCheckBox *m_switchingSignalCheckBox;
+    QDoubleSpinBox *m_switchingAmplitudeSpinBox;
+    QDoubleSpinBox *m_switchingFrequencySpinBox;
+
     // Для графика зависимости MST от шума
     QtCharts::QChart *m_mstChart;
     QtCharts::QChartView *m_mstChartView;
