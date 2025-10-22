@@ -26,6 +26,10 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     layout->addWidget(m_aSpinBox);
     layout->addWidget(m_gammaSpinBox);
     layout->addWidget(m_timeSpinBox);
+    m_useHeunCheckBox = new QCheckBox("Использовать Хьюна (вместо Эйлера)");
+    m_useHeunCheckBox->setChecked(false);  // по умолчанию Эйлер
+
+    layout->addWidget(m_useHeunCheckBox);
 
     m_series = new QLineSeries();
     m_chart = new QChart();
@@ -43,6 +47,18 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     axisY->setLabelFormat("%.2f");
     m_chart->addAxis(axisY, Qt::AlignLeft);
     m_series->attachAxis(axisY);
+
+    m_seriesClean = new QLineSeries();
+    m_seriesClean->setName("Без шума");
+    m_series->setName("С шумом");
+
+    QPen cleanPen(Qt::blue);
+    cleanPen.setStyle(Qt::DashLine);
+    m_seriesClean->setPen(cleanPen);
+
+    m_chart->addSeries(m_seriesClean);
+    m_seriesClean->attachAxis(axisX);
+    m_seriesClean->attachAxis(axisY);
 
     m_chartView = new QChartView(m_chart);
     m_chartView->setRenderHint(QPainter::Antialiasing);
@@ -71,7 +87,15 @@ void SecondOrderWidget::runSimulation()
     double dt = static_cast<double>(maxTime) / 1000;
     m_model->setDt(dt);
 
-    m_model->simulateSingleTrajectory(m_series);
+    if (m_useHeunCheckBox->isChecked())
+    {
+        m_model->simulateTrajectoryHeun(m_series, m_seriesClean);
+    }
+    else
+    {
+        m_model->simulateSingleTrajectory(m_series, m_seriesClean);
+    }
+
 
     auto points = m_series->pointsVector();
     if (!points.empty()) {

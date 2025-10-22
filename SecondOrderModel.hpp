@@ -12,7 +12,11 @@ public:
     void setA(double a);
     void setGamma(double gamma);
     double computeSwitchDelay(double threshold, int trials);
-    void simulateSingleTrajectory(QtCharts::QLineSeries *series_x);
+    void simulateSingleTrajectory(QtCharts::QLineSeries *series_x,
+                                  QLineSeries *series_clean);
+    void simulateTrajectoryHeun(QtCharts::QLineSeries *series_noise,
+                                QtCharts::QLineSeries *series_clean);
+
 
 private:
     double m_a;

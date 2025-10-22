@@ -27,8 +27,11 @@ private:
     QtCharts::QChart *m_chart;
     QtCharts::QChartView *m_chartView;
     QtCharts::QLineSeries *m_series;
+    QtCharts::QLineSeries *m_seriesClean;
 
     QPushButton *m_runButton;
     QLabel *m_resultLabel;
+
+    QCheckBox *m_useHeunCheckBox;
 
 };

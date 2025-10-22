@@ -22,7 +22,7 @@ void Heun::HeunModel::method(QLineSeries *series_x, QLineSeries *series_dxdt,
     double x = m_x0;  // Начальное значение x
     double t = m_t0;  // Начальное время
     double h = m_dt;  // Шаг интегрирования
-    double g = 1.0;   // Интенсивность шума
+    double g = 0.5;   // Интенсивность шума
 
     series_x->clear();
     series_dxdt->clear();
