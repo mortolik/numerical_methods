@@ -72,3 +72,9 @@ CMakeLists.txt.user*
 *.dll
 *.exe
 
+# Ignore shell scripts and index files
+*.sh
+*.idx
+
+*.json
+
