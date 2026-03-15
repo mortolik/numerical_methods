@@ -23,8 +23,7 @@ std::vector<std::pair<double, double>> SecondOrderModel::computeMSTvsNoise(const
                     switching = switchingAmplitude * sin(2 * M_PI * switchingFrequency * t);
                 }
                 double a_det = m_a - sin(x) - m_gamma * v + switching;
-                double a_total = a_det + noise;
-                v += h * a_total;
+                v += h * a_det + xi_t * sqrt(h);
                 x += h * v;
                 t += h;
                 if (x >= threshold) {
@@ -34,7 +33,8 @@ std::vector<std::pair<double, double>> SecondOrderModel::computeMSTvsNoise(const
                 }
             }
         }
-        double mst = (count > 0) ? totalDelay / count : -1.0;
+        double maxTime = m_steps * m_dt;
+        double mst = (count > 0) ? totalDelay / count : maxTime;
         results.emplace_back(D, mst);
     }
     // Восстановить исходную дисперсию
@@ -92,9 +92,8 @@ double SecondOrderModel::computeSwitchDelay(double threshold, int trials) {
             double noise = xi_t * sqrt(h);
 
             double a_det = m_a + m_signalAmp * sin(m_signalFreq * t) - sin(x) - m_gamma * v;
-            double a_total = a_det + noise;
+            v += h * a_det + xi_t * sqrt(h);
 
-            v += h * a_total;
             x += h * v;
             t += h;
 
@@ -106,7 +105,8 @@ double SecondOrderModel::computeSwitchDelay(double threshold, int trials) {
         }
     }
 
-    return (count > 0) ? totalDelay / count : -1.0;
+    double maxTime = m_steps * m_dt;
+    return (count > 0) ? totalDelay / count : maxTime;
 }
 void SecondOrderModel::simulateSingleTrajectory(QtCharts::QLineSeries *series_noise,
                                                 QtCharts::QLineSeries *series_clean)
@@ -131,9 +131,8 @@ void SecondOrderModel::simulateSingleTrajectory(QtCharts::QLineSeries *series_no
 
         // --- With NOISE ---
         double a_det_n = m_a + signal - sin(x_noise) - m_gamma * v_noise;
-        double a_total_n = a_det_n + noise;
+        v_noise += h * a_det_n + xi_t * sqrt(h);
 
-        v_noise += h * a_total_n;
         x_noise += h * v_noise;
         
         if (series_noise) series_noise->append(t, x_noise);
@@ -147,8 +146,6 @@ void SecondOrderModel::simulateSingleTrajectory(QtCharts::QLineSeries *series_no
         }
 
         t += h;
-
-        if (x_noise > M_PI + 2.0) break;
     }
 }
 

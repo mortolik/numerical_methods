@@ -205,6 +205,18 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
 }
 void SecondOrderWidget::runMSTvsNoiseExperiment()
 {
+    // Считываем текущие параметры системы из UI
+    double a = m_aSpinBox->value();
+    double gamma = m_gammaSpinBox->value();
+    int maxTime = m_timeSpinBox->value();
+    double dt = 0.01;
+    int steps = static_cast<int>(maxTime / dt);
+
+    m_model->setA(a);
+    m_model->setGamma(gamma);
+    m_model->setDt(dt);
+    m_model->setSteps(steps);
+
     // Диапазон интенсивностей шума из UI
     std::vector<double> noiseIntensities;
     double dMin = m_dMinSpinBox->value();
@@ -230,15 +242,29 @@ void SecondOrderWidget::runMSTvsNoiseExperiment()
     // Автоматически подобрать оси
     if (!results.empty()) {
         double minX = results.front().first, maxX = results.back().first;
-        double minY = results.front().second, maxY = results.front().second;
+        
+        double minY = 1e9, maxY = -1e9;
+        bool foundPositive = false;
+        
         for (const auto& pair : results) {
             if (pair.second > 0) {
                 if (pair.second < minY) minY = pair.second;
                 if (pair.second > maxY) maxY = pair.second;
+                foundPositive = true;
             }
         }
+        
         m_mstChart->axes(Qt::Horizontal).first()->setRange(minX, maxX);
-        m_mstChart->axes(Qt::Vertical).first()->setRange(minY, maxY);
+        
+        if (foundPositive) {
+            // Если хотя бы одна точка посчиталась, масштабируем график
+            double margin = (maxY - minY) * 0.1;
+            if (margin == 0) margin = maxY * 0.1;
+            m_mstChart->axes(Qt::Vertical).first()->setRange(std::max(0.0, minY - margin), maxY + margin);
+        } else {
+            // Если все тесты не достигли порога, ставим стандартную заглушку
+            m_mstChart->axes(Qt::Vertical).first()->setRange(0, maxTime);
+        }
     }
 }
 
