@@ -1,4 +1,6 @@
-#pragma once
+#ifndef SECONDORDERMODEL_HPP
+#define SECONDORDERMODEL_HPP
+
 #include <QtCharts>
 #include <QObject>
 #include <random>
@@ -36,5 +38,9 @@ private:
     double m_dt;
     int m_steps;
     std::mt19937 m_gen;
+
+
     std::normal_distribution<> m_dist;
 };
+
+#endif // SECONDORDERMODEL_HPP

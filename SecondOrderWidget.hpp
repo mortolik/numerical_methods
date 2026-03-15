@@ -1,4 +1,6 @@
-#pragma once
+#ifndef SECONDORDERWIDGET_HPP
+#define SECONDORDERWIDGET_HPP
+
 #include <QWidget>
 #include <QtCharts>
 #include <QPushButton>
@@ -52,5 +54,6 @@ private:
     QtCharts::QChart *m_mstChart;
     QtCharts::QChartView *m_mstChartView;
     QtCharts::QLineSeries *m_mstSeries;
-
 };
+
+#endif // SECONDORDERWIDGET_HPP
