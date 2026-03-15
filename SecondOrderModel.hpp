@@ -11,10 +11,15 @@ public:
     void setDt(double dt);
     void setA(double a);
     void setGamma(double gamma);
+    // Added during merge
+    void setSignalAmp(double A);
+    void setSignalFreq(double w);
+    void setSteps(int steps); // Added setter
     void setSeed(int seed); // Новый метод для задания seed
+
     double computeSwitchDelay(double threshold, int trials);
     void simulateSingleTrajectory(QtCharts::QLineSeries *series_x,
-                                  QLineSeries *series_clean);
+                                  QtCharts::QLineSeries *series_clean = nullptr);
     void simulateTrajectoryHeun(QtCharts::QLineSeries *series_noise,
                                 QtCharts::QLineSeries *series_clean);
     // Новый метод для серии экспериментов по MST
@@ -24,6 +29,8 @@ public:
 private:
     double m_a;
     double m_gamma;
+    double m_signalAmp; // A
+    double m_signalFreq; // w
     double m_x0;
     double m_v0;
     double m_dt;

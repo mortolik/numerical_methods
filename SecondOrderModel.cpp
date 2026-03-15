@@ -45,6 +45,7 @@ std::vector<std::pair<double, double>> SecondOrderModel::computeMSTvsNoise(const
 
 SecondOrderModel::SecondOrderModel(double a, double gamma, int steps, QObject *parent)
     : QObject{parent}, m_a(a), m_gamma(gamma),
+    m_signalAmp(0.5), m_signalFreq(1.0),
     m_x0(0.0), m_v0(0.0), m_dt(0.001), m_steps(steps),
     m_gen(std::random_device{}()), m_dist(0.0, 1.0) {}
 
@@ -64,6 +65,18 @@ void SecondOrderModel::setGamma(double gamma) {
     m_gamma = gamma;
 }
 
+void SecondOrderModel::setSignalAmp(double A) {
+    m_signalAmp = A;
+}
+
+void SecondOrderModel::setSignalFreq(double w) {
+    m_signalFreq = w;
+}
+
+void SecondOrderModel::setSteps(int steps) {
+    m_steps = steps;
+}
+
 double SecondOrderModel::computeSwitchDelay(double threshold, int trials) {
     double totalDelay = 0.0;
     int count = 0;
@@ -78,7 +91,7 @@ double SecondOrderModel::computeSwitchDelay(double threshold, int trials) {
             double xi_t = m_dist(m_gen);
             double noise = xi_t * sqrt(h);
 
-            double a_det = m_a - sin(x) - m_gamma * v;
+            double a_det = m_a + m_signalAmp * sin(m_signalFreq * t) - sin(x) - m_gamma * v;
             double a_total = a_det + noise;
 
             v += h * a_total;
@@ -95,38 +108,43 @@ double SecondOrderModel::computeSwitchDelay(double threshold, int trials) {
 
     return (count > 0) ? totalDelay / count : -1.0;
 }
-void SecondOrderModel::simulateSingleTrajectory(QLineSeries *series_noise,
-                                                QLineSeries *series_clean)
+void SecondOrderModel::simulateSingleTrajectory(QtCharts::QLineSeries *series_noise,
+                                                QtCharts::QLineSeries *series_clean)
 {
-    series_noise->clear();
-    series_clean->clear();
+    if (series_noise) series_noise->clear();
+    if (series_clean) series_clean->clear();
 
     double x_noise = m_x0;
-    double x_clean = m_x0;
     double v_noise = m_v0;
-    double v_clean = m_v0;
+    double x_clean = m_x0; // Clean trajectory state
+    double v_clean = m_v0; 
+
     double t = 0.0;
     double h = m_dt;
 
     for (int i = 0; i < m_steps; ++i) {
         double xi_t = m_dist(m_gen);
         double noise = xi_t * sqrt(h);
+        
+        // Signal term
+        double signal = m_signalAmp * sin(m_signalFreq * t);
 
-        // С шумом
-        double a_det_n = m_a - sin(x_noise) - m_gamma * v_noise;
+        // --- With NOISE ---
+        double a_det_n = m_a + signal - sin(x_noise) - m_gamma * v_noise;
         double a_total_n = a_det_n + noise;
 
         v_noise += h * a_total_n;
         x_noise += h * v_noise;
+        
+        if (series_noise) series_noise->append(t, x_noise);
 
-        // Без шума
-        double a_det_c = m_a - sin(x_clean) - m_gamma * v_clean;
-
-        v_clean += h * a_det_c;
-        x_clean += h * v_clean;
-
-        series_noise->append(t, x_noise);
-        series_clean->append(t, x_clean);
+        // --- Without NOISE (Clean) ---
+        if (series_clean) {
+            double a_det_c = m_a + signal - sin(x_clean) - m_gamma * v_clean;
+            v_clean += h * a_det_c;
+            x_clean += h * v_clean;
+            series_clean->append(t, x_clean);
+        }
 
         t += h;
 

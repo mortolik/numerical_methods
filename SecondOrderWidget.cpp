@@ -18,7 +18,7 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     m_gammaSpinBox->setValue(0.5);
 
     m_timeSpinBox = new QSpinBox();
-    m_timeSpinBox->setRange(1, 1000);
+    m_timeSpinBox->setRange(1, 10000);
     m_timeSpinBox->setPrefix("Время = ");
     m_timeSpinBox->setValue(1000);
 
@@ -246,13 +246,21 @@ void SecondOrderWidget::runSimulation()
 {
     double a = m_aSpinBox->value();
     double gamma = m_gammaSpinBox->value();
+    double amp = m_switchingSignalCheckBox->isChecked() ? m_switchingAmplitudeSpinBox->value() : 0.0;
+    double freq = m_switchingFrequencySpinBox->value();
     int maxTime = m_timeSpinBox->value();
-
 
     m_model->setA(a);
     m_model->setGamma(gamma);
-    double dt = static_cast<double>(maxTime) / 1000;
+    m_model->setSignalAmp(amp);
+    m_model->setSignalFreq(freq);
+    
+    // Fixed time step (dt) for stability, calculate steps based on maxTime
+    double dt = 0.01; 
+    int steps = static_cast<int>(maxTime / dt);
     m_model->setDt(dt);
+    m_model->setSteps(steps);
+
     // Установить seed перед одиночным запуском
     if (m_randomSeedCheckBox->isChecked()) {
         m_model->setSeed(static_cast<int>(std::random_device{}()));

@@ -19,6 +19,7 @@ class MainWindow;
 }
 QT_END_NAMESPACE
 
+class MSTChartWidget;
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -26,6 +27,9 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+
+private slots:
+    void onRunMSTAnalysis();
 
 private:
     QWidget* mainWidget;
@@ -37,4 +41,6 @@ private:
 
     SecondOrderModel *m_secondOrderModel {nullptr};
     SecondOrderWidget *m_secondOrderWidget {nullptr};
+
+    MSTChartWidget* m_mstChartWidget {nullptr};
 };
