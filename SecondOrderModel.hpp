@@ -4,6 +4,8 @@
 #include <QtCharts>
 #include <QObject>
 #include <random>
+#include <vector>
+#include <utility>
 
 class SecondOrderModel : public QObject {
     Q_OBJECT
@@ -13,33 +15,27 @@ public:
     void setDt(double dt);
     void setA(double a);
     void setGamma(double gamma);
-    // Added during merge
     void setSignalAmp(double A);
     void setSignalFreq(double w);
-    void setSteps(int steps); // Added setter
-    void setSeed(int seed); // Новый метод для задания seed
+    void setSteps(int steps);
+    void setSeed(int seed);
+    void setUseHeun(bool useHeun);
 
-    double computeSwitchDelay(double threshold, int trials);
-    void simulateSingleTrajectory(QtCharts::QLineSeries *series_x,
-                                  QtCharts::QLineSeries *series_clean = nullptr);
-    void simulateTrajectoryHeun(QtCharts::QLineSeries *series_noise,
-                                QtCharts::QLineSeries *series_clean);
-    // Новый метод для серии экспериментов по MST
+    void simulateTrajectory(QtCharts::QLineSeries *series_noise, QtCharts::QLineSeries *series_clean = nullptr);
+
     std::vector<std::pair<double, double>> computeMSTvsNoise(const std::vector<double>& noiseIntensities, double threshold, int trials, bool withSwitchingSignal = false, double switchingAmplitude = 0.0, double switchingFrequency = 1.0);
-
 
 private:
     double m_a;
     double m_gamma;
-    double m_signalAmp; // A
-    double m_signalFreq; // w
+    double m_signalAmp;
+    double m_signalFreq;
     double m_x0;
     double m_v0;
     double m_dt;
     int m_steps;
+    bool m_useHeun;
     std::mt19937 m_gen;
-
-
     std::normal_distribution<> m_dist;
 };
 

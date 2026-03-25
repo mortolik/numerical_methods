@@ -9,13 +9,13 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     m_aSpinBox->setRange(-10.0, 10.0);
     m_aSpinBox->setSingleStep(0.1);
     m_aSpinBox->setPrefix("a = ");
-    m_aSpinBox->setValue(0.5);
+    m_aSpinBox->setValue(0.5); // 1-е приближение из статьи Гордеевой и Панкратова (2008)
 
     m_gammaSpinBox = new QDoubleSpinBox();
     m_gammaSpinBox->setRange(0.01, 10.0);
     m_gammaSpinBox->setSingleStep(0.1);
     m_gammaSpinBox->setPrefix("γ = ");
-    m_gammaSpinBox->setValue(0.5);
+    m_gammaSpinBox->setValue(1.0); // Затухание
 
     m_timeSpinBox = new QSpinBox();
     m_timeSpinBox->setRange(1, 10000);
@@ -41,17 +41,18 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     // --- Элементы управления для MST-эксперимента ---
     m_dMinSpinBox = new QDoubleSpinBox();
     m_dMinSpinBox->setFixedWidth(spinBoxWidth);
-    m_dMinSpinBox->setRange(0.0, 10.0);
-    m_dMinSpinBox->setSingleStep(0.01);
+    m_dMinSpinBox->setRange(0.0001, 10.0);
+    m_dMinSpinBox->setDecimals(4);
+    m_dMinSpinBox->setSingleStep(0.001);
     m_dMinSpinBox->setPrefix("D min = ");
-    m_dMinSpinBox->setValue(0.01);
+    m_dMinSpinBox->setValue(0.001);
 
     m_dMaxSpinBox = new QDoubleSpinBox();
     m_dMaxSpinBox->setFixedWidth(spinBoxWidth);
-    m_dMaxSpinBox->setRange(0.0, 10.0);
-    m_dMaxSpinBox->setSingleStep(0.01);
+    m_dMaxSpinBox->setRange(0.01, 10.0);
+    m_dMaxSpinBox->setSingleStep(0.1);
     m_dMaxSpinBox->setPrefix("D max = ");
-    m_dMaxSpinBox->setValue(0.5);
+    m_dMaxSpinBox->setValue(1.0);
 
     m_dStepSpinBox = new QDoubleSpinBox();
     m_dStepSpinBox->setFixedWidth(spinBoxWidth);
@@ -81,14 +82,14 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     m_switchingAmplitudeSpinBox->setRange(0.0, 10.0);
     m_switchingAmplitudeSpinBox->setSingleStep(0.01);
     m_switchingAmplitudeSpinBox->setPrefix("Амплитуда = ");
-    m_switchingAmplitudeSpinBox->setValue(0.0);
+    m_switchingAmplitudeSpinBox->setValue(1.0); // A=1.0 из статьи (или A=0.7)
 
     m_switchingFrequencySpinBox = new QDoubleSpinBox();
     m_switchingFrequencySpinBox->setFixedWidth(spinBoxWidth);
     m_switchingFrequencySpinBox->setRange(0.01, 10.0);
     m_switchingFrequencySpinBox->setSingleStep(0.01);
     m_switchingFrequencySpinBox->setPrefix("Частота = ");
-    m_switchingFrequencySpinBox->setValue(1.0);
+    m_switchingFrequencySpinBox->setValue(0.4); // ω=0.4 - там, где наиболее выражен эффект NES
 
     // --- Вертикальное размещение всех элементов ---
     m_useHeunCheckBox = new QCheckBox("Использовать Хьюна (вместо Эйлера)");
@@ -185,14 +186,16 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     m_mstChart = new QChart();
     m_mstChart->addSeries(m_mstSeries);
     m_mstChart->setTitle("Среднее время переключения vs интенсивность шума");
-    QValueAxis *mstAxisX = new QValueAxis();
-    mstAxisX->setTitleText("Интенсивность шума D");
-    mstAxisX->setLabelFormat("%.3f");
+    QLogValueAxis *mstAxisX = new QLogValueAxis();
+    mstAxisX->setBase(10.0);
+    mstAxisX->setTitleText("Интенсивность шума D (log scale)");
+    mstAxisX->setLabelFormat("%g");
     m_mstChart->addAxis(mstAxisX, Qt::AlignBottom);
     m_mstSeries->attachAxis(mstAxisX);
-    QValueAxis *mstAxisY = new QValueAxis();
-    mstAxisY->setTitleText("Среднее время переключения");
-    mstAxisY->setLabelFormat("%.2f");
+    QLogValueAxis *mstAxisY = new QLogValueAxis();
+    mstAxisY->setBase(10.0);
+    mstAxisY->setTitleText("Среднее время MST, c (log scale)");
+    mstAxisY->setLabelFormat("%g");
     m_mstChart->addAxis(mstAxisY, Qt::AlignLeft);
     m_mstSeries->attachAxis(mstAxisY);
     m_mstChartView = new QChartView(m_mstChart);
@@ -216,13 +219,21 @@ void SecondOrderWidget::runMSTvsNoiseExperiment()
     m_model->setGamma(gamma);
     m_model->setDt(dt);
     m_model->setSteps(steps);
+    m_model->setUseHeun(m_useHeunCheckBox->isChecked());
 
-    // Диапазон интенсивностей шума из UI
+    // Диапазон интенсивностей шума из UI (Теперь логарифмический масштаб для точного повторения статьи)
     std::vector<double> noiseIntensities;
     double dMin = m_dMinSpinBox->value();
     double dMax = m_dMaxSpinBox->value();
-    double dStep = m_dStepSpinBox->value();
-    for (double D = dMin; D <= dMax + 1e-8; D += dStep) noiseIntensities.push_back(D);
+    if (dMin <= 0) dMin = 1e-4; // Защита от <= 0 для логарифма
+
+    int numPoints = 50; // Генерируем 50 точек в логарифмическом масштабе
+    double logDMin = std::log10(dMin);
+    double logDMax = std::log10(dMax);
+    for (int i = 0; i < numPoints; ++i) {
+        double D = std::pow(10, logDMin + i * (logDMax - logDMin) / (numPoints - 1));
+        noiseIntensities.push_back(D);
+    }
     double threshold = m_thresholdSpinBox->value();
     int trials = m_trialsSpinBox->value();
     bool withSwitching = m_switchingSignalCheckBox->isChecked();
@@ -237,19 +248,23 @@ void SecondOrderWidget::runMSTvsNoiseExperiment()
     auto results = m_model->computeMSTvsNoise(noiseIntensities, threshold, trials, withSwitching, switchingAmplitude, switchingFrequency);
     m_mstSeries->clear();
     for (const auto& pair : results) {
-        m_mstSeries->append(pair.first, pair.second);
+        double D = pair.first;
+        double MST = pair.second > 0 ? pair.second : 1e-4;
+        m_mstSeries->append(D, MST);
     }
     // Автоматически подобрать оси
     if (!results.empty()) {
-        double minX = results.front().first, maxX = results.back().first;
+        double minX = results.front().first;
+        double maxX = results.back().first;
         
         double minY = 1e9, maxY = -1e9;
         bool foundPositive = false;
         
         for (const auto& pair : results) {
             if (pair.second > 0) {
-                if (pair.second < minY) minY = pair.second;
-                if (pair.second > maxY) maxY = pair.second;
+                double valMST = pair.second;
+                if (valMST < minY) minY = valMST;
+                if (valMST > maxY) maxY = valMST;
                 foundPositive = true;
             }
         }
@@ -258,12 +273,11 @@ void SecondOrderWidget::runMSTvsNoiseExperiment()
         
         if (foundPositive) {
             // Если хотя бы одна точка посчиталась, масштабируем график
-            double margin = (maxY - minY) * 0.1;
-            if (margin == 0) margin = maxY * 0.1;
-            m_mstChart->axes(Qt::Vertical).first()->setRange(std::max(0.0, minY - margin), maxY + margin);
+            double marginFactor = 1.1;
+            m_mstChart->axes(Qt::Vertical).first()->setRange(std::max(1e-4, minY / marginFactor), maxY * marginFactor);
         } else {
             // Если все тесты не достигли порога, ставим стандартную заглушку
-            m_mstChart->axes(Qt::Vertical).first()->setRange(0, maxTime);
+            m_mstChart->axes(Qt::Vertical).first()->setRange(1e-4, maxTime);
         }
     }
 }
@@ -286,6 +300,7 @@ void SecondOrderWidget::runSimulation()
     int steps = static_cast<int>(maxTime / dt);
     m_model->setDt(dt);
     m_model->setSteps(steps);
+    m_model->setUseHeun(m_useHeunCheckBox->isChecked());
 
     // Установить seed перед одиночным запуском
     if (m_randomSeedCheckBox->isChecked()) {
@@ -294,15 +309,7 @@ void SecondOrderWidget::runSimulation()
         m_model->setSeed(m_seedSpinBox->value());
     }
 
-    if (m_useHeunCheckBox->isChecked())
-    {
-        m_model->simulateTrajectoryHeun(m_series, m_seriesClean);
-    }
-    else
-    {
-        m_model->simulateSingleTrajectory(m_series, m_seriesClean);
-    }
-
+    m_model->simulateTrajectory(m_series, m_seriesClean);
 
     auto points = m_series->pointsVector();
     if (!points.empty()) {
@@ -318,7 +325,10 @@ void SecondOrderWidget::runSimulation()
 
     double threshold = M_PI;
     int trials = 100;
-    double delay = m_model->computeSwitchDelay(threshold, trials);
+    
+    std::vector<double> currentNoise = {1.0}; // Default base noise for visual
+    auto res = m_model->computeMSTvsNoise(currentNoise, threshold, trials, m_switchingSignalCheckBox->isChecked(), amp, freq);
+    double delay = res.empty() ? 0.0 : res[0].second;
 
     m_resultLabel->setText(QString("Средняя задержка: %1\n(по %2 траекториям)").arg(delay, 0, 'f', 4).arg(trials));
 }
