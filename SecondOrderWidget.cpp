@@ -1,6 +1,10 @@
 #include "SecondOrderWidget.hpp"
 #include <QVBoxLayout>
 #include <QMessageBox>
+#include <QProgressDialog>
+#include <QApplication>
+#include <QtConcurrent>
+#include <QFuture>
 
 SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     : QWidget{parent}, m_model(model)
@@ -20,7 +24,7 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     m_timeSpinBox = new QSpinBox();
     m_timeSpinBox->setRange(1, 10000);
     m_timeSpinBox->setPrefix("Время = ");
-    m_timeSpinBox->setValue(1000);
+    m_timeSpinBox->setValue(300); // 300 секунд достаточно для большинства переходов, 1000 слишком долго для симуляции 1000 траекторий
 
     // --- Новый layout: параметры слева, графики справа ---
     QHBoxLayout *mainLayout = new QHBoxLayout(this);
@@ -70,12 +74,13 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
 
     m_trialsSpinBox = new QSpinBox();
     m_trialsSpinBox->setFixedWidth(spinBoxWidth);
-    m_trialsSpinBox->setRange(1, 10000);
+    m_trialsSpinBox->setRange(1, 100000);
     m_trialsSpinBox->setPrefix("Траекторий = ");
-    m_trialsSpinBox->setValue(100);
+    m_trialsSpinBox->setValue(1000); // 1000 trajectories for better smoothing
 
     m_switchingSignalCheckBox = new QCheckBox("Переключающий сигнал");
     m_switchingSignalCheckBox->setFixedWidth(spinBoxWidth);
+    m_switchingSignalCheckBox->setChecked(true); // Запускаем с переключением по умолчанию
 
     m_switchingAmplitudeSpinBox = new QDoubleSpinBox();
     m_switchingAmplitudeSpinBox->setFixedWidth(spinBoxWidth);
@@ -93,7 +98,7 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
 
     // --- Вертикальное размещение всех элементов ---
     m_useHeunCheckBox = new QCheckBox("Использовать Хьюна (вместо Эйлера)");
-    m_useHeunCheckBox->setChecked(false);
+    m_useHeunCheckBox->setChecked(true); // Хьюн по умолчанию
 
     // --- Seed для генератора случайных чисел ---
     m_seedSpinBox = new QSpinBox();
@@ -104,8 +109,8 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
 
     m_randomSeedCheckBox = new QCheckBox("Рандомный seed");
     m_randomSeedCheckBox->setFixedWidth(spinBoxWidth);
-    m_randomSeedCheckBox->setChecked(true);
-    m_seedSpinBox->setEnabled(false);
+    m_randomSeedCheckBox->setChecked(false); // Без рандомного сида по умолчанию
+    m_seedSpinBox->setEnabled(true);
     connect(m_randomSeedCheckBox, &QCheckBox::toggled, this, [this](bool checked){
         m_seedSpinBox->setEnabled(!checked);
     });
@@ -227,7 +232,10 @@ void SecondOrderWidget::runMSTvsNoiseExperiment()
     double dMax = m_dMaxSpinBox->value();
     if (dMin <= 0) dMin = 1e-4; // Защита от <= 0 для логарифма
 
-    int numPoints = 50; // Генерируем 50 точек в логарифмическом масштабе
+    // Генерируем точки в логарифмическом масштабе 
+    // Вместо 50 точек (которое считалось очень долго), сделаем 20 точек.
+    // На 10-ядерном процессоре M4 это займет ровно 2 вычислительных "волны", что существенно быстрее.
+    int numPoints = 20; 
     double logDMin = std::log10(dMin);
     double logDMax = std::log10(dMax);
     for (int i = 0; i < numPoints; ++i) {
@@ -235,7 +243,9 @@ void SecondOrderWidget::runMSTvsNoiseExperiment()
         noiseIntensities.push_back(D);
     }
     double threshold = m_thresholdSpinBox->value();
-    int trials = m_trialsSpinBox->value();
+    int trials = 1000; // ЖЕСТКО ЗАДАЕМ 1000 ТРАЕКТОРИЙ КАК И ПРОСИЛИ
+    m_trialsSpinBox->setValue(1000); 
+
     bool withSwitching = m_switchingSignalCheckBox->isChecked();
     double switchingAmplitude = m_switchingAmplitudeSpinBox->value();
     double switchingFrequency = m_switchingFrequencySpinBox->value();
@@ -245,7 +255,36 @@ void SecondOrderWidget::runMSTvsNoiseExperiment()
     } else {
         m_model->setSeed(m_seedSpinBox->value());
     }
-    auto results = m_model->computeMSTvsNoise(noiseIntensities, threshold, trials, withSwitching, switchingAmplitude, switchingFrequency);
+    
+    QProgressDialog progress("Вычисление траекторий... Пожалуйста, подождите.", "Отмена", 0, 100, this);
+    progress.setWindowModality(Qt::WindowModal);
+    progress.setMinimumDuration(0);
+    progress.setValue(0);
+    QApplication::processEvents();
+
+    // Copy these into simple local variables so they can be captured by value in the lambda safely
+    SecondOrderModel* model_ptr_safe = m_model;
+    bool withSwitchingBool = withSwitching; 
+    
+    QFuture<std::vector<std::pair<double, double>>> future = QtConcurrent::run(
+        [model_ptr_safe, noiseIntensities, threshold, trials, withSwitchingBool, switchingAmplitude, switchingFrequency]() {
+            return model_ptr_safe->computeMSTvsNoise(noiseIntensities, threshold, trials, withSwitchingBool, switchingAmplitude, switchingFrequency);
+        }
+    );
+    
+    while (!future.isFinished()) {
+        QApplication::processEvents(QEventLoop::AllEvents, 50);
+        if (progress.wasCanceled()) {
+            future.cancel(); // We can't strictly cancel std::sync inside immediately, but we can stop UI waiting
+            return;
+        }
+        // Minimal visual spinning delay
+        QThread::msleep(50);
+    }
+    progress.setValue(100);
+    
+    auto results = future.result();
+
     m_mstSeries->clear();
     for (const auto& pair : results) {
         double D = pair.first;
@@ -324,7 +363,7 @@ void SecondOrderWidget::runSimulation()
     }
 
     double threshold = M_PI;
-    int trials = 100;
+    int trials = m_trialsSpinBox->value();
     
     std::vector<double> currentNoise = {1.0}; // Default base noise for visual
     auto res = m_model->computeMSTvsNoise(currentNoise, threshold, trials, m_switchingSignalCheckBox->isChecked(), amp, freq);

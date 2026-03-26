@@ -59,3 +59,6 @@ macx {
     QMAKE_LFLAGS_RELEASE = $$replace(QMAKE_LFLAGS_RELEASE, -framework AGL, )
     QMAKE_LFLAGS_DEBUG = $$replace(QMAKE_LFLAGS_DEBUG, -framework AGL, )
 }
+QMAKE_CXXFLAGS += -O3
+QMAKE_CXXFLAGS_RELEASE += -O3
+QT += concurrent

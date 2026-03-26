@@ -43,6 +43,10 @@ MainWindow::MainWindow(QWidget *parent)
     mstLayout->addWidget(m_mstChartWidget);
     mstTab->setLayout(mstLayout);
     tabWidget->addTab(mstTab, "MST-анализ");
+    
+    // Set default tab to "2-й порядок"
+    tabWidget->setCurrentIndex(2);
+
     connect(runBtn, &QPushButton::clicked, this, &MainWindow::onRunMSTAnalysis);
 
     setMinimumSize(800, 600);

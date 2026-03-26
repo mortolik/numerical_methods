@@ -1,0 +1,8 @@
+--- SecondOrderModel.cpp
++++ SecondOrderModel.cpp
+@@ -101,89 +101,60 @@
+-        unsigned int localSeed = m_gen(); // Get thread-safe seed from main generator
+-
+-        futures.push_back(std::async(std::launch::async, [this, D, threshold, trials, withSwitchingSignal, switchingAmplitude, switchingFrequency, localSeed]() -> std::pair<double, double> {
++        unsigned int localSeed = m_gen(); 
++        futures.push_back(std::async(std::launch::async, [this, D, threshold, trials, withSwitchingSignal, switchingAmplitude, switchingFrequency, localSeed]() -> std::pair<double, double> {

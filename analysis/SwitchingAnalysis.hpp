@@ -12,10 +12,9 @@ public:
     // Получить массив MST для набора интенсивностей шума
     std::vector<double> mstVsNoise(const std::vector<double>& noiseList, bool withSignal, int nRuns = 1000);
 private:
-    double simulate(double noiseIntensity, bool withSignal);
+    double simulate(double noiseIntensity, bool withSignal, std::mt19937& local_gen);
     double dt_;
     int maxSteps_;
-    std::mt19937 gen_;
 };
 
 #endif // SWITCHINGANALYSIS_HPP
