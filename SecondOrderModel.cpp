@@ -158,3 +158,78 @@ std::vector<std::pair<double, double>> SecondOrderModel::computeMSTvsNoise(const
 
     return results;
 }
+
+std::vector<std::pair<double, double>> SecondOrderModel::computeMSTvsSweep(bool sweepFrequency, double fixedD, double fixedFreq, const std::vector<double>& sweepPoints, double threshold, int trials, bool withSwitchingSignal, double switchingAmplitude) {
+    std::vector<std::pair<double, double>> results;
+    std::vector<std::future<std::pair<double, double>>> futures;
+
+    for (size_t i = 0; i < sweepPoints.size(); ++i) {
+        double currentPoint = sweepPoints[i];
+        double D = sweepFrequency ? fixedD : currentPoint;
+        double currentFreq = sweepFrequency ? currentPoint : fixedFreq;
+        unsigned int localSeed = m_gen();
+
+        futures.push_back(std::async(std::launch::async, [this, D, currentFreq, currentPoint, threshold, trials, withSwitchingSignal, switchingAmplitude, localSeed]() -> std::pair<double, double> {
+            std::mt19937 local_gen(localSeed);
+            std::normal_distribution<> local_dist(0.0, 1.0);
+            
+            double totalDelay = 0.0;
+            int count = 0;
+            double stdev = sqrt(D);
+            
+            std::vector<double> precomputed_signals(m_steps + 1, 0.0);
+            if (withSwitchingSignal) {
+                for (int step = 0; step <= m_steps; ++step) {
+                    double t_step = step * m_dt;
+                    precomputed_signals[step] = switchingAmplitude * sin(currentFreq * t_step);
+                }
+            }
+            
+            double sqrt_h = sqrt(m_dt);
+            double noise_factor = stdev * sqrt_h;
+            double half_h = 0.5 * m_dt;
+            
+            for (int trial = 0; trial < trials; ++trial) {
+                double x = m_x0;
+                double v = m_v0;
+                double t = 0.0;
+                double h = m_dt;
+                for (int step = 0; step < m_steps; ++step) {
+                    double z = local_dist(local_gen);
+                    double dW = z * noise_factor;
+
+                    if (m_useHeun) {
+                        double ax1 = m_a + precomputed_signals[step] - sin(x) - m_gamma * v;
+                        double v_pred = v + h * ax1 + dW;
+                        double x_pred = x + h * v;
+                        double ax2 = m_a + precomputed_signals[step + 1] - sin(x_pred) - m_gamma * v_pred;
+                        
+                        double v_old = v;
+                        v += half_h * (ax1 + ax2) + dW;
+                        x += half_h * (v_old + v_pred);
+                    } else {
+                        double ax = m_a + precomputed_signals[step] - sin(x) - m_gamma * v;
+                        v += h * ax + dW;
+                        x += h * v;
+                    }
+
+                    t += h;
+                    if (x >= threshold) {
+                        totalDelay += t;
+                        ++count;
+                        break;
+                    }
+                }
+            }
+            double maxTime = m_steps * m_dt;
+            double mst = (count > 0) ? totalDelay / count : maxTime;
+            return {currentPoint, mst};
+        }));
+    }
+
+    for (auto& f : futures) {
+        results.push_back(f.get());
+    }
+
+    return results;
+}

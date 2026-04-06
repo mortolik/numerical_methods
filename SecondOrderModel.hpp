@@ -24,6 +24,8 @@ public:
     void simulateTrajectory(QtCharts::QLineSeries *series_noise, QtCharts::QLineSeries *series_clean = nullptr);
 
     std::vector<std::pair<double, double>> computeMSTvsNoise(const std::vector<double>& noiseIntensities, double threshold, int trials, bool withSwitchingSignal = false, double switchingAmplitude = 0.0, double switchingFrequency = 1.0);
+    
+    std::vector<std::pair<double, double>> computeMSTvsSweep(bool sweepFrequency, double fixedD, double fixedFreq, const std::vector<double>& sweepPoints, double threshold, int trials, bool withSwitchingSignal, double switchingAmplitude);
 
 private:
     double m_a;

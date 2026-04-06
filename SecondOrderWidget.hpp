@@ -5,6 +5,7 @@
 #include <QtCharts>
 #include <QPushButton>
 #include <QDoubleSpinBox>
+#include <QLineEdit>
 #include <QSpinBox>
 #include "SecondOrderModel.hpp"
 
@@ -19,12 +20,13 @@ public:
 private slots:
     void runSimulation();
     void runMSTvsNoiseExperiment();
+    void clearMstChart();
 
 
 private:
     SecondOrderModel *m_model;
     QDoubleSpinBox *m_aSpinBox;
-    QDoubleSpinBox *m_gammaSpinBox;
+    QLineEdit *m_gammaLineEdit;
     QSpinBox *m_timeSpinBox;
     QSpinBox *m_seedSpinBox;
     QCheckBox *m_randomSeedCheckBox;
@@ -36,11 +38,14 @@ private:
 
     QPushButton *m_runButton;
     QPushButton *m_mstVsNoiseButton;
+    QPushButton *m_clearMstButton;
     QLabel *m_resultLabel;
 
     QCheckBox *m_useHeunCheckBox;
 
     // Для MST-эксперимента
+    QComboBox *m_xAxisMode;
+    QLineEdit *m_noiseDLineEdit;
     QDoubleSpinBox *m_dMinSpinBox;
     QDoubleSpinBox *m_dMaxSpinBox;
     QDoubleSpinBox *m_dStepSpinBox;
@@ -53,7 +58,6 @@ private:
     // Для графика зависимости MST от шума
     QtCharts::QChart *m_mstChart;
     QtCharts::QChartView *m_mstChartView;
-    QtCharts::QLineSeries *m_mstSeries;
 };
 
 #endif // SECONDORDERWIDGET_HPP
