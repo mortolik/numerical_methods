@@ -21,7 +21,8 @@ private slots:
     void runSimulation();
     void runMSTvsNoiseExperiment();
     void clearMstChart();
-
+    void copyMstChart();
+    void expandMstChart();
 
 private:
     SecondOrderModel *m_model;
@@ -58,6 +59,9 @@ private:
     // Для графика зависимости MST от шума
     QtCharts::QChart *m_mstChart;
     QtCharts::QChartView *m_mstChartView;
+    QVBoxLayout *m_chartsLayout;
+    QPushButton *m_copyMstButton;
+    QPushButton *m_expandMstButton;
 };
 
 #endif // SECONDORDERWIDGET_HPP

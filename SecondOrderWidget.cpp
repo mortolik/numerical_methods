@@ -5,6 +5,8 @@
 #include <QMessageBox>
 #include <QProgressDialog>
 #include <QApplication>
+#include <QClipboard>
+#include <QDialog>
 #include <QtConcurrent>
 #include <QFuture>
 
@@ -25,11 +27,11 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     // --- Новый layout: параметры слева, графики справа ---
     QHBoxLayout *mainLayout = new QHBoxLayout(this);
     QFormLayout *paramsLayout = new QFormLayout();
-    QVBoxLayout *chartsLayout = new QVBoxLayout();
+    m_chartsLayout = new QVBoxLayout();
     // Настроить внешние отступы
     mainLayout->setContentsMargins(10, 10, 10, 10);
     paramsLayout->setContentsMargins(0, 0, 0, 0);
-    chartsLayout->setContentsMargins(0, 0, 0, 0);
+    m_chartsLayout->setContentsMargins(0, 0, 0, 0);
 
     // Параметры моделирования
     // --- Одинаковая ширина для всех спинбоксов ---
@@ -181,13 +183,25 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     m_clearMstButton->setFixedWidth(180);
     m_clearMstButton->setStyleSheet("background-color: #f44336; color: white; font-weight: bold;");
 
+    m_copyMstButton = new QPushButton("Скопировать изображение");
+    m_copyMstButton->setFixedWidth(180);
+    m_copyMstButton->setStyleSheet("background-color: #2196F3; color: white; font-weight: bold;");
+
+    m_expandMstButton = new QPushButton("Открыть график MST");
+    m_expandMstButton->setFixedWidth(180);
+    m_expandMstButton->setStyleSheet("background-color: #FF9800; color: white; font-weight: bold;");
+
     connect(m_runButton, &QPushButton::clicked, this, &SecondOrderWidget::runSimulation);
     connect(m_mstVsNoiseButton, &QPushButton::clicked, this, &SecondOrderWidget::runMSTvsNoiseExperiment);
     connect(m_clearMstButton, &QPushButton::clicked, this, &SecondOrderWidget::clearMstChart);
+    connect(m_copyMstButton, &QPushButton::clicked, this, &SecondOrderWidget::copyMstChart);
+    connect(m_expandMstButton, &QPushButton::clicked, this, &SecondOrderWidget::expandMstChart);
     
     paramsLayout->addRow(m_runButton);
     paramsLayout->addRow(m_mstVsNoiseButton);
     paramsLayout->addRow(m_clearMstButton);
+    paramsLayout->addRow(m_copyMstButton);
+    paramsLayout->addRow(m_expandMstButton);
 
     m_resultLabel = new QLabel("Задержка включения: -");
     m_resultLabel->setAlignment(Qt::AlignCenter);
@@ -227,7 +241,7 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
 
     m_chartView = new QChartView(m_chart);
     m_chartView->setRenderHint(QPainter::Antialiasing);
-    chartsLayout->addWidget(m_chartView);
+    m_chartsLayout->addWidget(m_chartView);
 
     // m_mstSeries удалена, будем добавлять новые серии динамически
     m_mstChart = new QChart();
@@ -243,10 +257,10 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     m_mstChart->addAxis(mstAxisY, Qt::AlignLeft);
     m_mstChartView = new QChartView(m_mstChart);
     m_mstChartView->setRenderHint(QPainter::Antialiasing);
-    chartsLayout->addWidget(m_mstChartView);
+    m_chartsLayout->addWidget(m_mstChartView);
 
     mainLayout->addWidget(paramsWidget, 0);
-    mainLayout->addLayout(chartsLayout, 2);
+    mainLayout->addLayout(m_chartsLayout, 2);
     setLayout(mainLayout);
 }
 void SecondOrderWidget::runMSTvsNoiseExperiment()
@@ -459,4 +473,46 @@ void SecondOrderWidget::runSimulation()
 
 void SecondOrderWidget::clearMstChart() {
     m_mstChart->removeAllSeries();
+}
+
+void SecondOrderWidget::copyMstChart() {
+    QPixmap p = m_mstChartView->grab();
+    QApplication::clipboard()->setPixmap(p);
+}
+
+void SecondOrderWidget::expandMstChart() {
+    QDialog dialog(this);
+    dialog.setWindowTitle("График MST");
+    dialog.resize(1000, 700);
+
+    QVBoxLayout *layout = new QVBoxLayout(&dialog);
+    layout->setContentsMargins(0, 0, 0, 0);
+    
+    QPushButton *copyDialogBtn = new QPushButton("Скопировать изображение (HD)", &dialog);
+    copyDialogBtn->setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; padding: 10px; margin: 5px;");
+    connect(copyDialogBtn, &QPushButton::clicked, this, &SecondOrderWidget::copyMstChart);
+
+    // Вынимаем chartView из главного окна
+    m_chartsLayout->removeWidget(m_mstChartView);
+
+    // Make legend more readable and beautiful
+    m_mstChart->legend()->setAlignment(Qt::AlignRight);
+    m_mstChart->legend()->setMarkerShape(QLegend::MarkerShapeFromSeries);
+    QFont font = m_mstChart->legend()->font();
+    font.setPointSize(12);
+    m_mstChart->legend()->setFont(font);
+
+    layout->addWidget(copyDialogBtn);
+    layout->addWidget(m_mstChartView);
+    
+    dialog.exec();
+
+    // Возвращаем все обратно после закрытия
+    layout->removeWidget(m_mstChartView);
+    m_mstChartView->setParent(this);
+    m_chartsLayout->addWidget(m_mstChartView);
+
+    m_mstChart->legend()->setAlignment(Qt::AlignTop);
+    font.setPointSize(10);
+    m_mstChart->legend()->setFont(font);
 }
