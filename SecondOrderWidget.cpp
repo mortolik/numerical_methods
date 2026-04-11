@@ -114,8 +114,8 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
         m_seedSpinBox->setEnabled(!checked);
     });
 
-    paramsLayout->addRow("a =", m_aSpinBox);
-    paramsLayout->addRow("γ (через запятую) =", m_gammaLineEdit);
+    paramsLayout->addRow("i₀ =", m_aSpinBox);
+    paramsLayout->addRow("α (через запятую) =", m_gammaLineEdit);
     paramsLayout->addRow("Время:", m_timeSpinBox);
     paramsLayout->addRow("", m_useHeunCheckBox);
     paramsLayout->addRow("", m_randomSeedCheckBox);
@@ -367,9 +367,9 @@ void SecondOrderWidget::runMSTvsNoiseExperiment()
             
             QString seriesName;
             if (sweepFrequency) {
-                seriesName = QString("γ=%1, A=%2, D=%3").arg(gamma).arg(withSwitching ? switchingAmplitude : 0.0).arg(D);
+                seriesName = QString("α=%1, A=%2, D=%3").arg(gamma).arg(withSwitching ? switchingAmplitude : 0.0).arg(D);
             } else {
-                seriesName = QString("γ=%1, A=%2, ω=%3").arg(gamma).arg(withSwitching ? switchingAmplitude : 0.0).arg(withSwitching ? fixedFreq : 0.0);
+                seriesName = QString("α=%1, A=%2, ω=%3").arg(gamma).arg(withSwitching ? switchingAmplitude : 0.0).arg(withSwitching ? fixedFreq : 0.0);
             }
             newMstSeries->setName(seriesName);
 
