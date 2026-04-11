@@ -145,6 +145,11 @@ std::vector<std::pair<double, double>> SecondOrderModel::computeMSTvsNoise(const
                         break;
                     }
                 }
+                // Если порог не достигнут, прибавляем максимальное время
+                if (x < threshold) {
+                    totalDelay += m_steps * m_dt;
+                    ++count;
+                }
             }
             double maxTime = m_steps * m_dt;
             double mst = (count > 0) ? totalDelay / count : maxTime;
@@ -219,6 +224,11 @@ std::vector<std::pair<double, double>> SecondOrderModel::computeMSTvsSweep(bool 
                         ++count;
                         break;
                     }
+                }
+                // Если порог не достигнут, прибавляем максимальное время
+                if (x < threshold) {
+                    totalDelay += m_steps * m_dt;
+                    ++count;
                 }
             }
             double maxTime = m_steps * m_dt;

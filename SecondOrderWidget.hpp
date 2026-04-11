@@ -23,6 +23,8 @@ private slots:
     void clearMstChart();
     void copyMstChart();
     void expandMstChart();
+    void expandTrajectoryChart();
+    void copyTrajectoryChart();
 
 private:
     SecondOrderModel *m_model;
@@ -62,6 +64,7 @@ private:
     QVBoxLayout *m_chartsLayout;
     QPushButton *m_copyMstButton;
     QPushButton *m_expandMstButton;
+    QPushButton *m_showTrajectoryButton;
 };
 
 #endif // SECONDORDERWIDGET_HPP

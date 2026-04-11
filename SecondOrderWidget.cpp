@@ -191,13 +191,19 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     m_expandMstButton->setFixedWidth(180);
     m_expandMstButton->setStyleSheet("background-color: #FF9800; color: white; font-weight: bold;");
 
+    m_showTrajectoryButton = new QPushButton("Открыть график x(t)");
+    m_showTrajectoryButton->setFixedWidth(180);
+    m_showTrajectoryButton->setStyleSheet("background-color: #9C27B0; color: white; font-weight: bold;");
+
     connect(m_runButton, &QPushButton::clicked, this, &SecondOrderWidget::runSimulation);
     connect(m_mstVsNoiseButton, &QPushButton::clicked, this, &SecondOrderWidget::runMSTvsNoiseExperiment);
     connect(m_clearMstButton, &QPushButton::clicked, this, &SecondOrderWidget::clearMstChart);
     connect(m_copyMstButton, &QPushButton::clicked, this, &SecondOrderWidget::copyMstChart);
     connect(m_expandMstButton, &QPushButton::clicked, this, &SecondOrderWidget::expandMstChart);
+    connect(m_showTrajectoryButton, &QPushButton::clicked, this, &SecondOrderWidget::expandTrajectoryChart);
     
     paramsLayout->addRow(m_runButton);
+    paramsLayout->addRow(m_showTrajectoryButton);
     paramsLayout->addRow(m_mstVsNoiseButton);
     paramsLayout->addRow(m_clearMstButton);
     paramsLayout->addRow(m_copyMstButton);
@@ -241,6 +247,7 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
 
     m_chartView = new QChartView(m_chart);
     m_chartView->setRenderHint(QPainter::Antialiasing);
+    m_chartView->hide(); // Скрываем по умолчанию
     m_chartsLayout->addWidget(m_chartView);
 
     // m_mstSeries удалена, будем добавлять новые серии динамически
@@ -515,4 +522,35 @@ void SecondOrderWidget::expandMstChart() {
     m_mstChart->legend()->setAlignment(Qt::AlignTop);
     font.setPointSize(10);
     m_mstChart->legend()->setFont(font);
+}
+
+void SecondOrderWidget::copyTrajectoryChart() {
+    QPixmap p = m_chartView->grab();
+    QApplication::clipboard()->setPixmap(p);
+}
+
+void SecondOrderWidget::expandTrajectoryChart() {
+    QDialog dialog(this);
+    dialog.setWindowTitle("График траектории x(t)");
+    dialog.resize(1000, 400);
+
+    QVBoxLayout *layout = new QVBoxLayout(&dialog);
+    layout->setContentsMargins(0, 0, 0, 0);
+
+    QPushButton *copyDialogBtn = new QPushButton("Скопировать изображение (HD)", &dialog);
+    copyDialogBtn->setStyleSheet("background-color: #9C27B0; color: white; font-weight: bold; padding: 10px; margin: 5px;");
+    connect(copyDialogBtn, &QPushButton::clicked, this, &SecondOrderWidget::copyTrajectoryChart);
+
+    m_chartsLayout->removeWidget(m_chartView);
+    layout->addWidget(copyDialogBtn);
+    layout->addWidget(m_chartView);
+    m_chartView->show();
+    
+    dialog.exec();
+
+    // Возвращаем все обратно после закрытия
+    layout->removeWidget(m_chartView);
+    m_chartView->setParent(this);
+    m_chartsLayout->insertWidget(0, m_chartView);
+    m_chartView->hide(); // Скрываем на главном экране
 }
