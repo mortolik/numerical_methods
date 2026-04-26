@@ -7,8 +7,35 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QDialog>
+#include <QFileDialog>
+#include <QDir>
+#include <QDateTime>
+#include <QPainter>
 #include <QtConcurrent>
 #include <QFuture>
+#include <QGraphicsTextItem>
+#include <limits>
+
+static void updateMstLastPointLabel(QChart *chart, QGraphicsTextItem *label, const QPointF &point, const QString &text)
+{
+    if (!chart || !label) {
+        return;
+    }
+
+    label->setHtml(QString(
+        "<div style='background-color: rgba(255,255,255,220); border: 1px solid #444; padding: 2px 4px;'>"
+        "<b>%1</b></div>").arg(text.toHtmlEscaped()));
+    label->setZValue(1001.0);
+    label->adjustSize();
+
+    const QPointF pos = chart->mapToPosition(point);
+    const QRectF bounds = label->boundingRect();
+    const QRectF plotArea = chart->plotArea();
+    const qreal x = std::min(std::max(pos.x() - bounds.width() / 2.0, plotArea.left()), plotArea.right() - bounds.width());
+    const qreal y = plotArea.bottom() + 4.0;
+    label->setPos(x, y);
+    label->setVisible(true);
+}
 
 SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     : QWidget{parent}, m_model(model)
@@ -114,13 +141,31 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
         m_seedSpinBox->setEnabled(!checked);
     });
 
-    paramsLayout->addRow("i₀ =", m_aSpinBox);
+    paramsLayout->addRow("a =", m_aSpinBox);
     paramsLayout->addRow("α (через запятую) =", m_gammaLineEdit);
     paramsLayout->addRow("Время:", m_timeSpinBox);
     paramsLayout->addRow("", m_useHeunCheckBox);
     paramsLayout->addRow("", m_randomSeedCheckBox);
     paramsLayout->addRow("Seed:", m_seedSpinBox);
+
+    m_presetsComboBox = new QComboBox();
+    m_presetsComboBox->addItem("Пресеты: Свой...");
+    m_presetsComboBox->addItem("Рис 1: Частотный отклик (A=1.0)");
+    m_presetsComboBox->addItem("Рис 2: NES. Влияние частоты (α=1.0)");
+    m_presetsComboBox->addItem("Рис 3: NES. Влияние затухания (ω=0.1)");
+    m_presetsComboBox->addItem("Рис 4: Подпороговый сигнал (A=0.2)");
+    m_presetsComboBox->addItem("Рис 5: Резонансная активация");
+    m_presetsComboBox->addItem("Рис 6: Модель Крамерса (A=0)");
+    connect(m_presetsComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &SecondOrderWidget::loadPreset);
+    paramsLayout->addRow("Набор параметров:", m_presetsComboBox);
+
+    m_buildAllPresetsButton = new QPushButton("Сгенерировать все пресеты");
+    m_buildAllPresetsButton->setStyleSheet("background-color: #E91E63; color: white; font-weight: bold;");
+    connect(m_buildAllPresetsButton, &QPushButton::clicked, this, &SecondOrderWidget::buildAllPresets);
+    paramsLayout->addRow(m_buildAllPresetsButton);
+
     paramsLayout->addRow(m_xAxisMode);
+
     paramsLayout->addRow("D min =", m_dMinSpinBox);
     paramsLayout->addRow("D max =", m_dMaxSpinBox);
     paramsLayout->addRow("D шаг =", m_dStepSpinBox);
@@ -132,6 +177,10 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     paramsLayout->addRow("D (через запятую) =", m_noiseDLineEdit);
 
     connect(m_xAxisMode, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this, paramsLayout](int index) {
+        if (!m_mstChart || m_mstChart->axes(Qt::Horizontal).isEmpty()) {
+            return;
+        }
+
         auto setRowVisible = [paramsLayout](QWidget* w, bool visible) {
             w->setVisible(visible);
             if (auto lbl = paramsLayout->labelForField(w)) {
@@ -184,6 +233,9 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     m_clearMstButton->setStyleSheet("background-color: #f44336; color: white; font-weight: bold;");
 
     m_copyMstButton = new QPushButton("Скопировать изображение");
+    m_saveMstButton = new QPushButton("Сохранить график MST");
+    m_saveMstButton->setStyleSheet("background-color: #FF9800; color: white; font-weight: bold;");
+    connect(m_saveMstButton, &QPushButton::clicked, this, &SecondOrderWidget::saveMstChart);
     m_copyMstButton->setFixedWidth(180);
     m_copyMstButton->setStyleSheet("background-color: #2196F3; color: white; font-weight: bold;");
 
@@ -207,6 +259,7 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     paramsLayout->addRow(m_mstVsNoiseButton);
     paramsLayout->addRow(m_clearMstButton);
     paramsLayout->addRow(m_copyMstButton);
+    paramsLayout->addRow(m_saveMstButton);
     paramsLayout->addRow(m_expandMstButton);
 
     m_resultLabel = new QLabel("Задержка включения: -");
@@ -253,6 +306,12 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     // m_mstSeries удалена, будем добавлять новые серии динамически
     m_mstChart = new QChart();
     m_mstChart->setTitle("Среднее время переключения vs интенсивность шума");
+    m_mstChart->setMargins(QMargins(12, 12, 88, 40));
+    m_mstChart->setPlotAreaBackgroundVisible(true);
+    m_mstChart->setPlotAreaBackgroundBrush(Qt::NoBrush);
+    m_mstChart->setPlotAreaBackgroundPen(QPen(QColor(120, 120, 120), 1));
+    m_mstLastPointLabel = new QGraphicsTextItem(m_mstChart);
+    m_mstLastPointLabel->setVisible(false);
     QLogValueAxis *mstAxisX = new QLogValueAxis();
     mstAxisX->setBase(10.0);
     mstAxisX->setTitleText("Интенсивность шума D (log scale)");
@@ -266,12 +325,80 @@ SecondOrderWidget::SecondOrderWidget(SecondOrderModel *model, QWidget *parent)
     m_mstChartView->setRenderHint(QPainter::Antialiasing);
     m_chartsLayout->addWidget(m_mstChartView);
 
+    connect(m_mstChart, &QChart::plotAreaChanged, this, [this](const QRectF &) {
+        if (m_mstLastPointLabel && m_mstLastPointLabel->isVisible()) {
+            const QRectF bounds = m_mstLastPointLabel->boundingRect();
+            const QPointF pos = m_mstChart->mapToPosition(m_mstLastPoint);
+            const QRectF plotArea = m_mstChart->plotArea();
+            const qreal x = std::min(std::max(pos.x() - bounds.width() / 2.0, plotArea.left()), plotArea.right() - bounds.width());
+            m_mstLastPointLabel->setPos(x, plotArea.bottom() + 4.0);
+        }
+    });
+
     mainLayout->addWidget(paramsWidget, 0);
     mainLayout->addLayout(m_chartsLayout, 2);
     setLayout(mainLayout);
 }
 void SecondOrderWidget::runMSTvsNoiseExperiment()
 {
+    // Для пресетов NES (2 и 3) обычный запуск должен строить полный набор кривых,
+    // а не одиночную линию текущих параметров.
+    static bool presetAutoBuildInProgress = false;
+    if (!presetAutoBuildInProgress) {
+        int idx = m_presetsComboBox->currentIndex();
+        if (idx == 2 || idx == 3) {
+            presetAutoBuildInProgress = true;
+            clearMstChart();
+
+            // Keep caller-provided sweep range (used by export zooms).
+            const double preservedDMin = m_dMinSpinBox->value();
+            const double preservedDMax = m_dMaxSpinBox->value();
+            const double preservedPoints = m_dStepSpinBox->value();
+            loadPreset(idx);
+            m_dMinSpinBox->setValue(preservedDMin);
+            m_dMaxSpinBox->setValue(preservedDMax);
+            m_dStepSpinBox->setValue(preservedPoints);
+
+            if (idx == 2) {
+                // NES vs frequency: несколько частот + статический предел (A=0, a=1.5)
+                m_switchingSignalCheckBox->setChecked(true);
+                m_aSpinBox->setValue(0.5);
+                m_gammaLineEdit->setText("1.0");
+                m_switchingAmplitudeSpinBox->setValue(1.0);
+                m_switchingFrequencySpinBox->setValue(0.4);
+                runMSTvsNoiseExperiment();
+                m_switchingFrequencySpinBox->setValue(0.45);
+                runMSTvsNoiseExperiment();
+                m_switchingFrequencySpinBox->setValue(0.48);
+                runMSTvsNoiseExperiment();
+                m_switchingFrequencySpinBox->setValue(0.5);
+                runMSTvsNoiseExperiment();
+
+                m_switchingSignalCheckBox->setChecked(false);
+                m_aSpinBox->setValue(1.5);
+                m_switchingAmplitudeSpinBox->setValue(0.0);
+                runMSTvsNoiseExperiment();
+                m_switchingSignalCheckBox->setChecked(true);
+            } else {
+                // NES vs alpha: sweep по alpha + статическая асимптотика (A=0, a=1.5)
+                m_switchingSignalCheckBox->setChecked(true);
+                m_aSpinBox->setValue(0.5);
+                m_switchingAmplitudeSpinBox->setValue(1.0);
+                runMSTvsNoiseExperiment();
+
+                m_switchingSignalCheckBox->setChecked(false);
+                m_aSpinBox->setValue(1.5);
+                m_switchingAmplitudeSpinBox->setValue(0.0);
+                m_gammaLineEdit->setText("1.0");
+                runMSTvsNoiseExperiment();
+                m_switchingSignalCheckBox->setChecked(true);
+            }
+
+            presetAutoBuildInProgress = false;
+            return;
+        }
+    }
+
     double a = m_aSpinBox->value();
     int maxTime = m_timeSpinBox->value();
     double dt = 0.01;
@@ -385,46 +512,93 @@ void SecondOrderWidget::runMSTvsNoiseExperiment()
         }
     }
     
-    // Automatically re-create standard axes around new logic to rescale correctly across series
-    m_mstChart->createDefaultAxes();
-    if (!m_mstChart->axes(Qt::Horizontal).isEmpty() && !m_mstChart->axes(Qt::Vertical).isEmpty()) {
-        QAbstractAxis *oldAxisX = m_mstChart->axes(Qt::Horizontal).first();
-        QAbstractAxis *oldAxisY = m_mstChart->axes(Qt::Vertical).first();
-        
-        double minX = static_cast<QValueAxis*>(oldAxisX)->min();
-        double maxX = static_cast<QValueAxis*>(oldAxisX)->max();
-        double minY = static_cast<QValueAxis*>(oldAxisY)->min();
-        double maxY = static_cast<QValueAxis*>(oldAxisY)->max();
-        
+    // Rebuild log axes with stable bounds and readable labels.
+    for (QAbstractAxis *axis : m_mstChart->axes()) {
+        m_mstChart->removeAxis(axis);
+    }
+
+        // X range is known from sweep controls and should stay consistent.
+        double minX = std::max(1e-5, minVal);
+        double maxX = std::max(minX * 1.01, maxVal);
+
+        // Keep the right boundary fixed at 1 only for sweeps that actually end near 1.
+        if (!sweepFrequency && maxVal <= 1.0 && maxX >= 0.95) {
+            maxX = 1.0;
+        }
+
+        // Compute Y range from all currently visible series.
+        double minY = std::numeric_limits<double>::max();
+        double maxY = 0.0;
+        for (QAbstractSeries *series : m_mstChart->series()) {
+            auto *line = qobject_cast<QLineSeries*>(series);
+            if (!line) continue;
+            const auto pts = line->pointsVector();
+            for (const QPointF &p : pts) {
+                if (p.y() > 0.0) {
+                    minY = std::min(minY, p.y());
+                    maxY = std::max(maxY, p.y());
+                }
+            }
+        }
+        if (!(minY < std::numeric_limits<double>::max()) || maxY <= 0.0) {
+            minY = 1e-3;
+            maxY = 1.0;
+        }
+
+        // Small multiplicative padding keeps curves away from plot borders.
+        minY = std::max(1e-5, minY * 0.9);
+        maxY = std::max(minY * 1.2, maxY * 1.1);
+
+        double minDecade = std::pow(10.0, std::floor(std::log10(minX)));
+        double maxDecade = std::pow(10.0, std::ceil(std::log10(maxX)));
+        if (!sweepFrequency && maxVal <= 1.0 && maxX >= 0.95) {
+            maxDecade = 1.0;
+        }
+
         QLogValueAxis *logAxisX = new QLogValueAxis();
-        if (sweepFrequency)
+        if (sweepFrequency) {
             logAxisX->setTitleText("Частота сигнала ω (log scale)");
-        else
+        } else {
             logAxisX->setTitleText("Интенсивность шума D (log scale)");
+        }
         logAxisX->setBase(10.0);
         logAxisX->setMinorTickCount(-1);
-        logAxisX->setMin(std::max(1e-5, minX * 0.9));
-        logAxisX->setMax(std::max(1e-4, maxX * 1.1));
-        
+        logAxisX->setLabelFormat("%.3g");
+        logAxisX->setMin(minDecade);
+        // Keep the rightmost decade label (e.g., 10 or 0.01) clearly inside plot area.
+        logAxisX->setMax(maxDecade * 1.2);
+
         QLogValueAxis *logAxisY = new QLogValueAxis();
         logAxisY->setTitleText("Среднее время MST, с (log scale)");
         logAxisY->setBase(10.0);
         logAxisY->setMinorTickCount(-1);
-        logAxisY->setMin(std::max(1e-5, minY * 0.9));
-        logAxisY->setMax(std::max(1e-4, maxY * 1.1));
-        
-        m_mstChart->removeAxis(oldAxisX);
-        m_mstChart->removeAxis(oldAxisY);
+        logAxisY->setLabelFormat("%.3g");
+        logAxisY->setMin(minY);
+        logAxisY->setMax(maxY);
+
         m_mstChart->addAxis(logAxisX, Qt::AlignBottom);
         m_mstChart->addAxis(logAxisY, Qt::AlignLeft);
-        
-        for(auto series : m_mstChart->series()) {
+
+
+        for (QAbstractSeries *series : m_mstChart->series()) {
             series->attachAxis(logAxisX);
             series->attachAxis(logAxisY);
         }
-    }
 
-}
+        m_mstChart->setMargins(QMargins(12, 12, 88, 40));
+        QApplication::processEvents();
+        if (!m_mstChart->series().isEmpty()) {
+            auto *firstSeries = qobject_cast<QLineSeries*>(m_mstChart->series().first());
+            if (firstSeries && !firstSeries->pointsVector().isEmpty()) {
+                m_mstLastPoint = firstSeries->pointsVector().last();
+                updateMstLastPointLabel(
+                    m_mstChart,
+                    m_mstLastPointLabel,
+                    m_mstLastPoint,
+                    QString::number(m_mstLastPoint.x(), 'g', 3));
+            }
+        }
+    }
 
 void SecondOrderWidget::runSimulation()
 {
@@ -480,10 +654,33 @@ void SecondOrderWidget::runSimulation()
 
 void SecondOrderWidget::clearMstChart() {
     m_mstChart->removeAllSeries();
+    const QList<QAbstractAxis*> axes = m_mstChart->axes();
+    for (QAbstractAxis *axis : axes) {
+        m_mstChart->removeAxis(axis);
+        axis->deleteLater();
+    }
 }
 
 void SecondOrderWidget::copyMstChart() {
+    QSize oldSize = m_mstChartView->size();
+    m_mstChartView->setFixedSize(1000, 700);
+        
+    m_mstChart->legend()->setAlignment(Qt::AlignRight);
+    QFont font = m_mstChart->legend()->font();
+    font.setPointSize(12);
+    m_mstChart->legend()->setFont(font);
+        
+    QApplication::processEvents();
     QPixmap p = m_mstChartView->grab();
+        
+    m_mstChartView->setMinimumSize(0, 0);
+    m_mstChartView->setMaximumSize(16777215, 16777215);
+    m_mstChartView->resize(oldSize);
+    
+    m_mstChart->legend()->setAlignment(Qt::AlignTop);
+    font.setPointSize(10);
+    m_mstChart->legend()->setFont(font);
+
     QApplication::clipboard()->setPixmap(p);
 }
 
@@ -525,7 +722,25 @@ void SecondOrderWidget::expandMstChart() {
 }
 
 void SecondOrderWidget::copyTrajectoryChart() {
+    QSize oldSize = m_chartView->size();
+    m_chartView->setFixedSize(1000, 400); // Диалоговый размер для траекторий
+    
+    m_chart->legend()->setAlignment(Qt::AlignRight);
+    QFont font = m_chart->legend()->font();
+    font.setPointSize(12);
+    m_chart->legend()->setFont(font);
+    
+    QApplication::processEvents();
     QPixmap p = m_chartView->grab();
+    
+    m_chartView->setMinimumSize(0, 0);
+    m_chartView->setMaximumSize(16777215, 16777215);
+    m_chartView->resize(oldSize);
+    
+    m_chart->legend()->setAlignment(Qt::AlignTop);
+    font.setPointSize(10);
+    m_chart->legend()->setFont(font);
+
     QApplication::clipboard()->setPixmap(p);
 }
 
@@ -553,4 +768,302 @@ void SecondOrderWidget::expandTrajectoryChart() {
     m_chartView->setParent(this);
     m_chartsLayout->insertWidget(0, m_chartView);
     m_chartView->hide(); // Скрываем на главном экране
+}
+
+
+void SecondOrderWidget::loadPreset(int index) {
+    if (index == 0) return; // Custom
+    
+    m_timeSpinBox->setValue(1500); // Гладкие кривые
+    m_thresholdSpinBox->setValue(3.14);
+    m_trialsSpinBox->setValue(1500); // Много усреднений по просьбе научника
+    
+    if (index == 1) { // Рис 1: freq_gamma_sweep
+        m_xAxisMode->setCurrentIndex(1); // freq mode
+        m_dMinSpinBox->setValue(0.001);
+        m_dMaxSpinBox->setValue(1.0);
+        m_dStepSpinBox->setValue(20);
+        m_aSpinBox->setValue(0.5);
+        m_switchingAmplitudeSpinBox->setValue(1.0);
+        m_gammaLineEdit->setText("0.2, 1.0, 5.0");
+        m_noiseDLineEdit->setText("0.05");
+    } else if (index == 2) { // Рис 2: nes_freq_sweep
+        m_xAxisMode->setCurrentIndex(0); // noise mode
+        m_dMinSpinBox->setValue(0.0001);
+        m_dMaxSpinBox->setValue(10.0);
+        m_dStepSpinBox->setValue(30);
+        m_aSpinBox->setValue(0.5);
+        m_switchingAmplitudeSpinBox->setValue(1.0);
+        m_gammaLineEdit->setText("1.0");
+        m_switchingFrequencySpinBox->setValue(0.4);
+    } else if (index == 3) { // Рис 3: nes_alpha_sweep
+        m_xAxisMode->setCurrentIndex(0);
+        m_dMinSpinBox->setValue(0.001);
+        m_dMaxSpinBox->setValue(1.0);
+        m_dStepSpinBox->setValue(20);
+        m_aSpinBox->setValue(0.5);
+        m_switchingAmplitudeSpinBox->setValue(1.0);
+        m_gammaLineEdit->setText("0.1, 1.0, 5.0");
+        m_switchingFrequencySpinBox->setValue(0.1);
+    } else if (index == 4) { // Рис 4: subthreshold
+        m_xAxisMode->setCurrentIndex(0);
+        m_dMinSpinBox->setValue(0.001);
+        m_dMaxSpinBox->setValue(1.0);
+        m_dStepSpinBox->setValue(20);
+        m_aSpinBox->setValue(0.5);
+        m_switchingAmplitudeSpinBox->setValue(0.2);
+        m_gammaLineEdit->setText("0.1, 1.0, 3.0");
+        m_switchingFrequencySpinBox->setValue(0.4);
+    } else if (index == 5) { // Рис 5: sr_classical
+        m_xAxisMode->setCurrentIndex(1); // freq mode
+        m_dMinSpinBox->setValue(0.001);
+        m_dMaxSpinBox->setValue(1.0);
+        m_dStepSpinBox->setValue(20);
+        m_aSpinBox->setValue(0.5);
+        m_switchingAmplitudeSpinBox->setValue(1.0);
+        m_gammaLineEdit->setText("1.0");
+        m_noiseDLineEdit->setText("0.01, 0.05, 0.1, 0.5, 1.0");
+    } else if (index == 6) { // Рис 6: kramers_pure
+        m_xAxisMode->setCurrentIndex(0);
+        m_dMinSpinBox->setValue(0.001);
+        m_dMaxSpinBox->setValue(1.0);
+        m_dStepSpinBox->setValue(20);
+        m_aSpinBox->setValue(0.5);
+        m_switchingAmplitudeSpinBox->setValue(0.0);
+        m_gammaLineEdit->setText("0.5, 1.0, 2.0, 5.0");
+        m_switchingFrequencySpinBox->setValue(0.4);
+    }
+}
+
+void SecondOrderWidget::saveMstChart() {
+    int idx = m_presetsComboBox->currentIndex();
+    QString defName = "mst_chart_" + QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss") + ".png";
+    if (idx == 1) defName = "freq_gamma_sweep.png";
+    else if (idx == 2) defName = "nes_freq_sweep.png";
+    else if (idx == 3) defName = "nes_alpha_sweep.png";
+    else if (idx == 4) defName = "subthreshold.png";
+    else if (idx == 5) defName = "sr_classical.png";
+    else if (idx == 6) defName = "kramers_pure.png";
+    else if (idx > 0) defName = m_presetsComboBox->currentText().replace(QRegExp("[^a-zA-Z0-9_а-яА-Я]"), "_") + ".png";
+    
+    QString defPath = QDir::currentPath() + "/analysis/images/" + defName;
+    QString fileName = QFileDialog::getSaveFileName(this, "Сохранить график HD", defPath, "Images (*.png)");
+    if (!fileName.isEmpty()) {
+        QSize oldSize = m_mstChartView->size();
+        m_mstChartView->setFixedSize(1000, 700); // Как в диалоговом окне
+        
+        m_mstChart->legend()->setAlignment(Qt::AlignRight);
+        QFont font = m_mstChart->legend()->font();
+        font.setPointSize(12);
+        m_mstChart->legend()->setFont(font);
+        
+        QApplication::processEvents();
+        QPixmap p = m_mstChartView->grab();
+        
+        m_mstChartView->setMinimumSize(0, 0);
+        m_mstChartView->setMaximumSize(16777215, 16777215);
+        m_mstChartView->resize(oldSize);
+        
+        m_mstChart->legend()->setAlignment(Qt::AlignTop);
+        font.setPointSize(10);
+        m_mstChart->legend()->setFont(font);
+        
+        p.save(fileName);
+    }
+}
+
+bool SecondOrderWidget::exportPresetChart(
+    int presetIndex,
+    const QString &filePath,
+    double dMinOverride,
+    double dMaxOverride,
+    int pointsOverride) {
+    if (presetIndex <= 0 || presetIndex >= m_presetsComboBox->count() || filePath.isEmpty()) {
+        return false;
+    }
+
+    const int oldPresetIndex = m_presetsComboBox->currentIndex();
+    const double oldDMin = m_dMinSpinBox->value();
+    const double oldDMax = m_dMaxSpinBox->value();
+    const int oldPoints = static_cast<int>(m_dStepSpinBox->value());
+
+    clearMstChart();
+    m_presetsComboBox->setCurrentIndex(presetIndex);
+
+    const bool hasRangeOverride = (dMinOverride > 0.0 && dMaxOverride > dMinOverride);
+    if (hasRangeOverride) {
+        m_dMinSpinBox->setValue(dMinOverride);
+        m_dMaxSpinBox->setValue(dMaxOverride);
+        if (pointsOverride >= 5) {
+            m_dStepSpinBox->setValue(pointsOverride);
+        }
+    }
+
+    runMSTvsNoiseExperiment();
+
+    QChart *tempChart = new QChart();
+    tempChart->setTitle(m_mstChart->title());
+    tempChart->legend()->setVisible(true);
+    tempChart->legend()->setAlignment(Qt::AlignTop);
+    tempChart->setMargins(QMargins(20, 20, 88, 40));
+    tempChart->setPlotAreaBackgroundVisible(true);
+    tempChart->setPlotAreaBackgroundBrush(Qt::NoBrush);
+    tempChart->setPlotAreaBackgroundPen(QPen(QColor(120, 120, 120), 1));
+    tempChart->resize(1000, 700);
+
+    double minX = std::numeric_limits<double>::max();
+    double maxX = 0.0;
+    double minY = std::numeric_limits<double>::max();
+    double maxY = 0.0;
+
+    const auto sourceSeries = m_mstChart->series();
+    for (QAbstractSeries *series : sourceSeries) {
+        auto *src = qobject_cast<QLineSeries*>(series);
+        if (!src) continue;
+
+        auto *copy = new QLineSeries();
+        copy->setName(src->name());
+        copy->setPen(src->pen());
+        copy->setPointsVisible(src->pointsVisible());
+
+        const auto points = src->pointsVector();
+        for (const QPointF &p : points) {
+            copy->append(p);
+            if (p.x() > 0.0) {
+                minX = std::min(minX, p.x());
+                maxX = std::max(maxX, p.x());
+            }
+            if (p.y() > 0.0) {
+                minY = std::min(minY, p.y());
+                maxY = std::max(maxY, p.y());
+            }
+        }
+        tempChart->addSeries(copy);
+    }
+
+    if (!(minX < std::numeric_limits<double>::max()) || maxX <= 0.0) {
+        minX = 1e-4;
+        maxX = 1.0;
+    }
+    if (!(minY < std::numeric_limits<double>::max()) || maxY <= 0.0) {
+        minY = 1e-3;
+        maxY = 1.0;
+    }
+
+    QLogValueAxis *logAxisX = new QLogValueAxis();
+    logAxisX->setBase(10.0);
+    logAxisX->setMinorTickCount(-1);
+    logAxisX->setLabelFormat("%.3g");
+    double minDecadeX = std::pow(10.0, std::floor(std::log10(minX)));
+    double maxDecadeX = std::pow(10.0, std::ceil(std::log10(maxX)));
+    logAxisX->setMin(minDecadeX);
+    // Keep the rightmost decade label (e.g., 10 or 0.01) clearly inside plot area.
+    logAxisX->setMax(maxDecadeX * 1.2);
+    if (m_xAxisMode->currentIndex() == 1) {
+        logAxisX->setTitleText("Частота сигнала ω (log scale)");
+    } else {
+        logAxisX->setTitleText("Интенсивность шума D (log scale)");
+    }
+
+    QLogValueAxis *logAxisY = new QLogValueAxis();
+    logAxisY->setBase(10.0);
+    logAxisY->setMinorTickCount(-1);
+    logAxisY->setLabelFormat("%.3g");
+    logAxisY->setMin(std::max(1e-5, minY * 0.9));
+    logAxisY->setMax(std::max(minY * 1.2, maxY * 1.1));
+    logAxisY->setTitleText("Среднее время MST, с (log scale)");
+
+    tempChart->addAxis(logAxisX, Qt::AlignBottom);
+    tempChart->addAxis(logAxisY, Qt::AlignLeft);
+
+    const auto renderedSeries = tempChart->series();
+    for (QAbstractSeries *series : renderedSeries) {
+        series->attachAxis(logAxisX);
+        series->attachAxis(logAxisY);
+    }
+
+    QChartView tempView(tempChart);
+    tempView.setRenderHint(QPainter::Antialiasing);
+    tempView.setFixedSize(1000, 700);
+    tempView.setSceneRect(QRectF(0, 0, 1000, 700));
+    tempView.show();
+    QApplication::processEvents();
+
+    QGraphicsTextItem *exportLastPointLabel = new QGraphicsTextItem(tempChart);
+    if (!tempChart->series().isEmpty()) {
+        auto *firstSeries = qobject_cast<QLineSeries*>(tempChart->series().first());
+        if (firstSeries && !firstSeries->pointsVector().isEmpty()) {
+            const QPointF lastPoint = firstSeries->pointsVector().last();
+            updateMstLastPointLabel(
+                tempChart,
+                exportLastPointLabel,
+                lastPoint,
+                QString::number(lastPoint.x(), 'g', 3));
+        }
+    }
+
+    QPixmap p(tempView.size());
+    p.fill(Qt::white);
+    QPainter painter(&p);
+    tempView.render(&painter);
+
+    painter.end();
+
+    const bool saved = p.save(filePath);
+
+    if (hasRangeOverride) {
+        m_dMinSpinBox->setValue(oldDMin);
+        m_dMaxSpinBox->setValue(oldDMax);
+        m_dStepSpinBox->setValue(oldPoints);
+    }
+    if (oldPresetIndex != presetIndex) {
+        m_presetsComboBox->setCurrentIndex(oldPresetIndex);
+    }
+
+    return saved;
+}
+
+void SecondOrderWidget::buildAllPresets() {
+    QString defDir = QDir::currentPath() + "/analysis/images";
+    QString saveDir = QFileDialog::getExistingDirectory(this, "Выберите папку для сохранения графиков", defDir);
+    if (saveDir.isEmpty()) return;
+
+    for (int i = 1; i < m_presetsComboBox->count(); ++i) {
+        clearMstChart();
+        m_presetsComboBox->setCurrentIndex(i);
+        
+        runMSTvsNoiseExperiment();
+        
+        QString fileNameString = "preset_" + QString::number(i) + ".png";
+        if (i == 1) fileNameString = "freq_gamma_sweep.png";
+        else if (i == 2) fileNameString = "nes_freq_sweep.png";
+        else if (i == 3) fileNameString = "nes_alpha_sweep.png";
+        else if (i == 4) fileNameString = "subthreshold.png";
+        else if (i == 5) fileNameString = "sr_classical.png";
+        else if (i == 6) fileNameString = "kramers_pure.png";
+        else fileNameString = m_presetsComboBox->currentText().replace(QRegExp("[^a-zA-Z0-9_а-яА-Я=-]"), "_") + ".png";
+        
+        QString fileName = QDir(saveDir).filePath(fileNameString);
+        
+        QSize oldSize = m_mstChartView->size();
+        m_mstChartView->setFixedSize(1000, 700);
+        
+        m_mstChart->legend()->setAlignment(Qt::AlignRight);
+        QFont font = m_mstChart->legend()->font();
+        font.setPointSize(12);
+        m_mstChart->legend()->setFont(font);
+        
+        QApplication::processEvents(); // Ensure charts update before render
+        QPixmap p = m_mstChartView->grab();
+        
+        m_mstChartView->setMinimumSize(0, 0);
+        m_mstChartView->setMaximumSize(16777215, 16777215);
+        m_mstChartView->resize(oldSize);
+        
+        m_mstChart->legend()->setAlignment(Qt::AlignTop);
+        font.setPointSize(10);
+        m_mstChart->legend()->setFont(font);
+        
+        p.save(fileName);
+    }
 }

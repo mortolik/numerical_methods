@@ -27,6 +27,12 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+    bool exportSecondOrderPreset(
+        int presetIndex,
+        const QString &filePath,
+        double dMinOverride = -1.0,
+        double dMaxOverride = -1.0,
+        int pointsOverride = -1);
 
 private slots:
     void onRunMSTAnalysis();

@@ -7,6 +7,7 @@
 #include <QDoubleSpinBox>
 #include <QLineEdit>
 #include <QSpinBox>
+#include <QGraphicsTextItem>
 #include "SecondOrderModel.hpp"
 
 using namespace QtCharts;
@@ -16,6 +17,12 @@ class SecondOrderWidget : public QWidget {
 
 public:
     SecondOrderWidget(SecondOrderModel *model, QWidget *parent = nullptr);
+    bool exportPresetChart(
+        int presetIndex,
+        const QString &filePath,
+        double dMinOverride = -1.0,
+        double dMaxOverride = -1.0,
+        int pointsOverride = -1);
 
 private slots:
     void runSimulation();
@@ -25,6 +32,9 @@ private slots:
     void expandMstChart();
     void expandTrajectoryChart();
     void copyTrajectoryChart();
+    void loadPreset(int index);
+    void buildAllPresets();
+    void saveMstChart();
 
 private:
     SecondOrderModel *m_model;
@@ -47,6 +57,11 @@ private:
     QCheckBox *m_useHeunCheckBox;
 
     // Для MST-эксперимента
+    // Presets and saving
+    QComboBox *m_presetsComboBox;
+    QPushButton *m_saveMstButton;
+    QPushButton *m_buildAllPresetsButton;
+    
     QComboBox *m_xAxisMode;
     QLineEdit *m_noiseDLineEdit;
     QDoubleSpinBox *m_dMinSpinBox;
@@ -61,6 +76,8 @@ private:
     // Для графика зависимости MST от шума
     QtCharts::QChart *m_mstChart;
     QtCharts::QChartView *m_mstChartView;
+    QGraphicsTextItem *m_mstLastPointLabel;
+    QPointF m_mstLastPoint;
     QVBoxLayout *m_chartsLayout;
     QPushButton *m_copyMstButton;
     QPushButton *m_expandMstButton;

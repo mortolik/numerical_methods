@@ -62,6 +62,23 @@ MainWindow::~MainWindow() {
     delete m_mstChartWidget;
 }
 
+bool MainWindow::exportSecondOrderPreset(
+    int presetIndex,
+    const QString &filePath,
+    double dMinOverride,
+    double dMaxOverride,
+    int pointsOverride) {
+    if (!m_secondOrderWidget) {
+        return false;
+    }
+    return m_secondOrderWidget->exportPresetChart(
+        presetIndex,
+        filePath,
+        dMinOverride,
+        dMaxOverride,
+        pointsOverride);
+}
+
 void MainWindow::onRunMSTAnalysis() {
     // Параметры моделирования
     double dt = 0.01;
