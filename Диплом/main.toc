@@ -1,0 +1,7 @@
+\babel@toc {russian}{}\relax 
+\contentsline {section}{Введение}{3}{}%
+\contentsline {section}{\numberline {1}Физическая и математическая модель стохастической динамики}{5}{}%
+\contentsline {subsection}{\numberline {1.1}Эффект Джозефсона и динамика фазы}{5}{}%
+\contentsline {subsection}{\numberline {1.2}Уравнение Ланжевена для осциллятора второго порядка}{5}{}%
+\contentsline {subsection}{\numberline {1.3}Индуцированные шумом переходы и эффект задержки переключения}{6}{}%
+\contentsline {subsection}{\numberline {1.4}Вычислительная сложность и необходимость распараллеливания}{7}{}%
