@@ -10,9 +10,12 @@
 %%%% Настройка полей и отступов
 \usepackage[a4paper,top=2cm,bottom=2cm,left=3cm,right=2cm,marginparwidth=1.75cm]{geometry}
 
-%%%% Меняет стандартный формат нумерации секций
-\usepackage{titlesec}
-\titlelabel{\thetitle.\,\,}
+%%%% Меняет стандартный формат нумерации секций (опционально)
+%%%% На некоторых окружениях (например, TeX Live basic) пакет может отсутствовать.
+\IfFileExists{titlesec.sty}{
+	\usepackage{titlesec}
+	\titlelabel{\thetitle.\,\,}
+}{}
 
 %%%% Облегчают набор математических формул
 \usepackage{amsmath}
@@ -24,7 +27,7 @@
 
 %%%% Управление размещением плавающих объектов
 \usepackage{float}
-\usepackage{placeins}
+\IfFileExists{placeins.sty}{\usepackage{placeins}}{}
 
 %%%% Ссылки и адреса в тексте
 \usepackage{url}
