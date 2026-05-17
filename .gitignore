@@ -1,4 +1,18 @@
-# This file is used to ignore files which are generated
+# Ignore Python scripts used for utility scripts/patching
+*.py
+
+# Ignore PNG images (generated figures)
+*.png
+
+# Ignore patch and diff files
+*.patch
+*.diff
+
+# Optional: ignore common LaTeX auxiliary files (kept commented)
+#*.aux
+#*.log
+#*.out
+#*.toc# This file is used to ignore files which are generated
 # ----------------------------------------------------------------------------
 
 *~
